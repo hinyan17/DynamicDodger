@@ -1,13 +1,3 @@
-/*
-const canvas = document.getElementById("gameCanvas");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const ctx = canvas.getContext("2d");
-ctx.fillStyle = "#222";
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-*/
-
 const backCanvas = document.getElementById("backCanvas");
 backCanvas.width = window.innerWidth;
 backCanvas.height = window.innerHeight;
@@ -19,29 +9,22 @@ canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
 // area is the background which uses the 2nd canvas
-function drawArea(area) {
+function drawArea(area, showGrid) {
     bgctx.fillStyle = "#222";
     bgctx.fillRect(0, 0, backCanvas.width, backCanvas.height);
+
     bgctx.fillStyle = "white";
-    bgctx.fillRect(area.x, area.y, area.width, area.height);
+    bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);
 
-    bgctx.strokeStyle = "pink";
-    bgctx.lineWidth = 1;
-    bgctx.beginPath();
-    bgctx.moveTo(area.leftSafeX, area.y);
-    bgctx.lineTo(area.leftSafeX, area.y + area.height);
-    bgctx.stroke();
-
-    bgctx.beginPath();
-    bgctx.moveTo(area.rightSafeX, area.y);
-    bgctx.lineTo(area.rightSafeX, area.y + area.height);
-    bgctx.stroke();
-    //drawGrid(area);
+    bgctx.fillStyle = "lightgray";
+    bgctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
+    bgctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
+    if (showGrid) drawGrid(area);
 }
 
 function drawGrid(area) {
     bgctx.strokeStyle = "#222";
-    bgctx.lineWidth = 0.5;
+    bgctx.lineWidth = 0.3;
     
     for (let i = area.x + 16; i < area.x + area.width; i += 16) {
         bgctx.beginPath();

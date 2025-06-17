@@ -2,16 +2,6 @@ console.log("hello skibidies");
 
 import {draw, drawArea, canvas} from "./drawer.js";
 //import Heap from "./heap-js.es5.js";
-
-let area = {
-    x: 0,
-    y: 110,
-    width: canvas.width,
-    height: 720,
-    leftSafeX: canvas.width / 12,
-    rightSafeX: canvas.width - canvas.width / 12
-};
-
 class Player {
     constructor() {
         this.radius = 20;
@@ -30,9 +20,40 @@ class Enemy {
     }
 }
 
-function spawnEnemies(num) {
+let area = {
+    x: 0,
+    y: 110,
+    width: canvas.width,
+    height: 720,
+    leftSafeX: canvas.width / 12,
+    rightSafeX: canvas.width - canvas.width / 12
+};
+
+const player = new Player();
+const enemies = [];
+const gameState = {area, player, enemies};
+window.gameState = gameState;
+
+// ticks per second, tick interval
+const TPS = 60;
+const T_INT = 1000 / TPS;
+let lastUpdate = performance.now();
+let paused = false;
+let showGrid = true;
+
+const keys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false
+};
+
+drawArea(gameState.area, showGrid);
+spawnEnemies(100, 200);
+requestAnimationFrame(gameLoop);
+
+function spawnEnemies(num, vel=200) {
     let radius = 10;
-    let vel = 200;
     let minX = area.leftSafeX + radius, maxX = area.rightSafeX - radius;
     let minY = area.y + radius, maxY = area.y + area.height - radius;
 
@@ -46,27 +67,10 @@ function spawnEnemies(num) {
     }
 }
 
-// input stuff
-const keys = {
-    ArrowUp: false,
-    ArrowDown: false,
-    ArrowLeft: false,
-    ArrowRight: false
-};
-
-window.addEventListener("keydown", e => {
-    if (e.key in keys) {
-        keys[e.key] = true;
-        e.preventDefault();
-    }
-});
-
-window.addEventListener("keyup", e => {
-    if (e.key in keys) {
-        keys[e.key] = false;
-        e.preventDefault();
-    }
-});
+function downPlayer() {
+    paused = true;
+    pauseBtn.textContent = "Resume";
+}
 
 function movePlayer(dt) {
     let dx = 0, dy = 0;
@@ -79,11 +83,6 @@ function movePlayer(dt) {
     player.y += dy * 500 * dt;
     player.x = Math.min(Math.max(area.x + player.radius, player.x), area.x + area.width - player.radius);
     player.y = Math.min(Math.max(area.y + player.radius, player.y), area.y + area.height - player.radius);
-}
-
-function downPlayer() {
-    paused = true;
-    pauseBtn.textContent = "Resume";
 }
 
 function update(dt) {
@@ -120,20 +119,6 @@ function update(dt) {
     }
 }
 
-const player = new Player();
-const enemies = [];
-const gameState = {area, player, enemies};
-window.gameState = gameState;
-
-drawArea(gameState.area);
-spawnEnemies(5);
-
-// ticks per second, tick interval
-const TPS = 60;
-const T_INT = 1000 / TPS;
-
-let paused = false;
-let lastUpdate = performance.now();
 function gameLoop(timestamp) {
     if (!paused) requestAnimationFrame(gameLoop);
 
@@ -144,8 +129,8 @@ function gameLoop(timestamp) {
     update(elapsed / 1000);
     draw(gameState);
 }
-requestAnimationFrame(gameLoop);
 
+// control button listeners
 const pauseBtn = document.getElementById("pauseBtn");
 pauseBtn.addEventListener("click", () => {
     paused = !paused;
@@ -161,4 +146,25 @@ frameBtn.addEventListener("click", () => {
     if (!paused) return;
     update(1 / TPS);
     draw(gameState);
+});
+
+const gridBtn = document.getElementById("gridBtn");
+gridBtn.addEventListener("click", () => {
+    showGrid = !showGrid;
+    drawArea(gameState.area, showGrid);
+});
+
+// input listeners
+window.addEventListener("keydown", e => {
+    if (e.key in keys) {
+        keys[e.key] = true;
+        e.preventDefault();
+    }
+});
+
+window.addEventListener("keyup", e => {
+    if (e.key in keys) {
+        keys[e.key] = false;
+        e.preventDefault();
+    }
 });

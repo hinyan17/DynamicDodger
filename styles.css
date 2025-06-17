@@ -16,6 +16,7 @@ body {
 
 #controlBar button {
     font-size: 1.125rem;
+    user-select: none;
     text-align: center;
 }
 
@@ -25,6 +26,10 @@ body {
 }
 
 #frameBtn {
+    padding: 10px 15px;
+}
+
+#gridBtn {
     padding: 10px 15px;
 }
 
