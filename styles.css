@@ -1,0 +1,44 @@
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+}
+
+#controlBar {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+}
+
+#controlBar button {
+    font-size: 1.125rem;
+    text-align: center;
+}
+
+#pauseBtn {
+    padding: 10px;
+    min-width: 10ch;
+}
+
+#frameBtn {
+    padding: 10px 15px;
+}
+
+canvas {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+#backCanvas {
+    z-index: 0;
+}
+
+#gameCanvas {
+    z-index: 1;
+}
