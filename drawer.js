@@ -8,6 +8,14 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
+function drawNodes(nodes, color, halfSize, cols, graph) {
+    bgctx.fillStyle = color;
+    for (const index of nodes) {
+        const n = graph[Math.floor(index / cols)][index % cols];
+        bgctx.fillRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
+    }
+}
+
 // area is the background which uses the 2nd canvas
 function drawArea(area, showGrid) {
     bgctx.fillStyle = "#222";
@@ -26,16 +34,16 @@ function drawGrid(area) {
     bgctx.strokeStyle = "#222";
     bgctx.lineWidth = 0.3;
     
-    for (let i = area.x + 16; i < area.x + area.width; i += 16) {
+    for (let x = area.x + area.nodeSize; x < area.x + area.width; x += area.nodeSize) {
         bgctx.beginPath();
-        bgctx.moveTo(i, area.y);
-        bgctx.lineTo(i, area.y + area.height);
+        bgctx.moveTo(x, area.y);
+        bgctx.lineTo(x, area.y + area.height);
         bgctx.stroke();
     }
-    for (let i = area.y + 16; i < area.y + area.height; i += 16) {
+    for (let y = area.y + area.nodeSize; y < area.y + area.height; y += area.nodeSize) {
         bgctx.beginPath();
-        bgctx.moveTo(area.x, i);
-        bgctx.lineTo(area.x + area.width, i);
+        bgctx.moveTo(area.x, y);
+        bgctx.lineTo(area.x + area.width, y);
         bgctx.stroke();
     }
 }
@@ -64,4 +72,4 @@ function draw(gameState) {
     drawEnemies(gameState.enemies);
 }
 
-export {draw, drawArea, canvas};
+export {canvas, draw, drawArea, drawNodes};

@@ -1,7 +1,8 @@
 console.log("hello skibidies");
 
-import {draw, drawArea, canvas} from "./drawer.js";
-//import Heap from "./heap-js.es5.js";
+import {canvas, draw, drawArea} from "./drawer.js";
+import TAS from "./newTas.js"
+
 class Player {
     constructor() {
         this.radius = 20;
@@ -26,7 +27,8 @@ let area = {
     width: canvas.width,
     height: 720,
     leftSafeX: canvas.width / 12,
-    rightSafeX: canvas.width - canvas.width / 12
+    rightSafeX: canvas.width - canvas.width / 12,
+    nodeSize: 16
 };
 
 const player = new Player();
@@ -49,11 +51,14 @@ const keys = {
 };
 
 drawArea(gameState.area, showGrid);
-spawnEnemies(100, 200);
-requestAnimationFrame(gameLoop);
+spawnEnemies(40, 200);
+update(1 / TPS);
+draw(gameState);
+const tasbot = TAS(gameState);
+//requestAnimationFrame(gameLoop);
 
 function spawnEnemies(num, vel=200) {
-    let radius = 10;
+    let radius = 15;
     let minX = area.leftSafeX + radius, maxX = area.rightSafeX - radius;
     let minY = area.y + radius, maxY = area.y + area.height - radius;
 
@@ -128,6 +133,7 @@ function gameLoop(timestamp) {
     lastUpdate = timestamp - (elapsed % T_INT);
     update(elapsed / 1000);
     draw(gameState);
+    //tasbot.main();
 }
 
 // control button listeners
