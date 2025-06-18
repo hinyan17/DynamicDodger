@@ -1,5 +1,5 @@
 import Heap from "./heap-js.es5.js";
-import {drawNodes} from "./drawer.js"
+import {drawArea, fillNodes, outlineNodes, markNodes} from "./drawer.js"
 
 export default function TAS(gameState) {
     
@@ -57,12 +57,28 @@ export default function TAS(gameState) {
     //updateVertex(goalNode);
     //computeShortestPath();
 
-    detectEnemyChanges();
-    const nodesToUnblock = prevBlocked.difference(currBlocked);
-    drawNodes(nodesToUnblock, "lightgreen", halfSize, cols, graph);
-    const nodesToBlock = currBlocked.difference(prevBlocked);
-    drawNodes(nodesToBlock, "lightred", halfSize, cols, graph);
-    //console.log(nodesToUnblock, nodesToBlock);
+    function test() {
+        drawArea(gameState.area, true);
+        detectEnemyChanges();
+        const nodesToUnblock = prevBlocked.difference(currBlocked);
+        const nodesToBlock = currBlocked.difference(prevBlocked);
+
+        //fillNodes(nodesToUnblock, "lightgreen", halfSize, cols, graph);
+        //fillNodes(nodesToBlock, "lightpink", halfSize, cols, graph);
+        fillNodes(currBlocked, "lightgreen", halfSize, cols, graph);
+        /*
+        fillNodes(currBlocked, "lightgreen", halfSize, cols, graph);
+        outlineNodes(prevBlocked, "crimson", halfSize, cols, graph);
+        markNodes(nodesToUnblock, "lightskyblue", halfSize, cols, graph);
+        markNodes(nodesToBlock, "violet", halfSize, cols, graph);
+        */
+        //console.log(nodesToUnblock, nodesToBlock);
+
+        const temp = prevBlocked;
+        prevBlocked = currBlocked;
+        currBlocked = temp;
+        currBlocked.clear();
+    }
 
     function circleOverlapsCell(cx, cy, r, ux, uy) {
         const dx = Math.max(Math.abs(cx - ux) - halfSize, 0);
@@ -105,9 +121,7 @@ export default function TAS(gameState) {
 
         detectEnemyChanges();
         const nodesToUnblock = prevBlocked.difference(currBlocked);
-        drawNodes(nodesToUnblock, "lightgreen", halfSize, cols, graph);
         const nodesToBlock = currBlocked.difference(prevBlocked);
-        drawNodes(nodesToBlock, "lightred", halfSize, cols, graph);
         console.log(nodesToUnblock, nodesToBlock);
 
         if (nodesToUnblock.size > 0 || nodesToBlock.size > 0) {
@@ -243,7 +257,7 @@ export default function TAS(gameState) {
         return graph[row][col];
     }
 
-    return {main};
+    return {test};
 }
 
 

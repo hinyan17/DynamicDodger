@@ -51,30 +51,27 @@ const keys = {
 };
 
 drawArea(gameState.area, showGrid);
-spawnEnemies(40, 200);
-update(1 / TPS);
-draw(gameState);
+spawnEnemies(15, 40, 40);
 const tasbot = TAS(gameState);
-//requestAnimationFrame(gameLoop);
+requestAnimationFrame(gameLoop);
 
-function spawnEnemies(num, vel=200) {
-    let radius = 15;
-    let minX = area.leftSafeX + radius, maxX = area.rightSafeX - radius;
-    let minY = area.y + radius, maxY = area.y + area.height - radius;
+function gameLoop(timestamp) {
+    if (!paused) requestAnimationFrame(gameLoop);
 
-    for (let i = 0; i < num; i++) {
-        let x = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
-        let y = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
-        let angle = Math.random() * 2 * Math.PI;
-        let vx = Math.cos(angle) * vel;
-        let vy = Math.sin(angle) * vel;
-        enemies.push(new Enemy(radius, x, y, vx, vy));
-    }
+    const elapsed = timestamp - lastUpdate;
+    if (elapsed < T_INT) return;
+
+    lastUpdate = timestamp - (elapsed % T_INT);
+    update(elapsed / 1000);
 }
 
-function downPlayer() {
-    paused = true;
-    pauseBtn.textContent = "Resume";
+// 1 update is 1 tick
+// dt is in seconds
+function update(dt) {
+    movePlayer(dt);
+    moveEnemies(dt);
+    draw(gameState);
+    tasbot.test();
 }
 
 function movePlayer(dt) {
@@ -90,10 +87,7 @@ function movePlayer(dt) {
     player.y = Math.min(Math.max(area.y + player.radius, player.y), area.y + area.height - player.radius);
 }
 
-function update(dt) {
-    // dt is in seconds
-    movePlayer(dt);
-
+function moveEnemies(dt) {
     for (let i = 0; i < enemies.length; i++) {
         const e = enemies[i];
         e.x += e.vx * dt;
@@ -124,16 +118,23 @@ function update(dt) {
     }
 }
 
-function gameLoop(timestamp) {
-    if (!paused) requestAnimationFrame(gameLoop);
+function downPlayer() {
+    paused = true;
+    pauseBtn.textContent = "Resume";
+}
 
-    const elapsed = timestamp - lastUpdate;
-    if (elapsed < T_INT) return;
+function spawnEnemies(num, radius=15, vel=200) {
+    let minX = area.leftSafeX + radius, maxX = area.rightSafeX - radius;
+    let minY = area.y + radius, maxY = area.y + area.height - radius;
 
-    lastUpdate = timestamp - (elapsed % T_INT);
-    update(elapsed / 1000);
-    draw(gameState);
-    //tasbot.main();
+    for (let i = 0; i < num; i++) {
+        let x = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
+        let y = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+        let angle = Math.random() * 2 * Math.PI;
+        let vx = Math.cos(angle) * vel;
+        let vy = Math.sin(angle) * vel;
+        enemies.push(new Enemy(radius, x, y, vx, vy));
+    }
 }
 
 // control button listeners
@@ -151,7 +152,6 @@ const frameBtn = document.getElementById("frameBtn");
 frameBtn.addEventListener("click", () => {
     if (!paused) return;
     update(1 / TPS);
-    draw(gameState);
 });
 
 const gridBtn = document.getElementById("gridBtn");

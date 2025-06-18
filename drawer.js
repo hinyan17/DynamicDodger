@@ -8,11 +8,30 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
-function drawNodes(nodes, color, halfSize, cols, graph) {
+function fillNodes(nodes, color, halfSize, cols, graph) {
     bgctx.fillStyle = color;
     for (const index of nodes) {
         const n = graph[Math.floor(index / cols)][index % cols];
         bgctx.fillRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
+    }
+}
+
+function outlineNodes(nodes, color, halfSize, cols, graph) {
+    bgctx.strokeStyle = color;
+    bgctx.lineWidth = 1;
+    for (const index of nodes) {
+        const n = graph[Math.floor(index / cols)][index % cols];
+        bgctx.strokeRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
+    }
+}
+
+function markNodes(nodes, color, halfSize, cols, graph) {
+    bgctx.fillStyle = color;
+    for (const index of nodes) {
+        const n = graph[Math.floor(index / cols)][index % cols];
+        bgctx.beginPath();
+        bgctx.arc(n.x, n.y, halfSize / 2, 0, 2 * Math.PI);
+        bgctx.fill();
     }
 }
 
@@ -62,7 +81,8 @@ function drawEnemies(enemies) {
         let e = enemies[i];
         ctx.beginPath();
         ctx.arc(e.x, e.y, e.radius, 0, 2 * Math.PI);
-        ctx.fill();
+        //ctx.fill();
+        ctx.stroke();
     }
 }
 
@@ -72,4 +92,4 @@ function draw(gameState) {
     drawEnemies(gameState.enemies);
 }
 
-export {canvas, draw, drawArea, drawNodes};
+export {canvas, draw, drawArea, fillNodes, outlineNodes, markNodes};
