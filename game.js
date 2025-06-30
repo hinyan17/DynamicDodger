@@ -1,8 +1,17 @@
 console.log("hello skibidies");
 
 import {canvas, draw, drawArea} from "./drawer.js";
-import TAS from "./newTas.js"
+import TAS from "./astarTas.js"
 
+const area = {
+    x: 0,
+    y: 110,
+    width: canvas.width,
+    height: 720,
+    leftSafeX: canvas.width / 12,
+    rightSafeX: canvas.width - canvas.width / 12,
+    nodeSize: 16
+};
 class Player {
     constructor() {
         this.radius = 20;
@@ -21,14 +30,11 @@ class Enemy {
     }
 }
 
-let area = {
-    x: 0,
-    y: 110,
-    width: canvas.width,
-    height: 720,
-    leftSafeX: canvas.width / 12,
-    rightSafeX: canvas.width - canvas.width / 12,
-    nodeSize: 16
+const keys = {
+    ArrowUp: false,
+    ArrowDown: false,
+    ArrowLeft: false,
+    ArrowRight: false
 };
 
 const player = new Player();
@@ -37,23 +43,18 @@ const gameState = {area, player, enemies};
 window.gameState = gameState;
 
 // ticks per second, tick interval
-const TPS = 60;
+const TPS = 30;
 const T_INT = 1000 / TPS;
 let lastUpdate = performance.now();
 let paused = false;
-let showGrid = true;
-
-const keys = {
-    ArrowUp: false,
-    ArrowDown: false,
-    ArrowLeft: false,
-    ArrowRight: false
-};
+let showGrid = false;
 
 drawArea(gameState.area, showGrid);
-spawnEnemies(15, 40, 40);
+spawnEnemies(100, 12, 80);
 const tasbot = TAS(gameState);
-requestAnimationFrame(gameLoop);
+if (!paused) {
+    requestAnimationFrame(gameLoop);
+}
 
 function gameLoop(timestamp) {
     if (!paused) requestAnimationFrame(gameLoop);
@@ -68,10 +69,17 @@ function gameLoop(timestamp) {
 // 1 update is 1 tick
 // dt is in seconds
 function update(dt) {
-    movePlayer(dt);
+    let next = tasbot.testPath();
+    tasMovePlayer(next);
+    //movePlayer(dt);
     moveEnemies(dt);
     draw(gameState);
-    tasbot.test();
+}
+
+function tasMovePlayer(next) {
+    if (next === null) return;
+    player.x = next.x + area.nodeSize / 2;
+    player.y = next.y + area.nodeSize / 2;
 }
 
 function movePlayer(dt) {
@@ -80,6 +88,7 @@ function movePlayer(dt) {
     if (keys.ArrowRight) dx += 1;
     if (keys.ArrowUp) dy -= 1;
     if (keys.ArrowDown) dy += 1;
+    if (dx == 0 && dy == 0) return;
 
     player.x += dx * 500 * dt;
     player.y += dy * 500 * dt;
@@ -113,7 +122,7 @@ function moveEnemies(dt) {
         const dy = e.y - player.y;
         const radii = e.radius + player.radius;
         if (dx*dx + dy*dy <= radii*radii) {
-            //downPlayer();
+            downPlayer();
         }
     }
 }
@@ -137,29 +146,6 @@ function spawnEnemies(num, radius=15, vel=200) {
     }
 }
 
-// control button listeners
-const pauseBtn = document.getElementById("pauseBtn");
-pauseBtn.addEventListener("click", () => {
-    paused = !paused;
-    pauseBtn.textContent = paused ? "Resume" : "Pause";
-    if (!paused) {
-        lastUpdate = performance.now();
-        requestAnimationFrame(gameLoop);
-    }
-});
-
-const frameBtn = document.getElementById("frameBtn");
-frameBtn.addEventListener("click", () => {
-    if (!paused) return;
-    update(1 / TPS);
-});
-
-const gridBtn = document.getElementById("gridBtn");
-gridBtn.addEventListener("click", () => {
-    showGrid = !showGrid;
-    drawArea(gameState.area, showGrid);
-});
-
 // input listeners
 window.addEventListener("keydown", e => {
     if (e.key in keys) {
@@ -174,3 +160,47 @@ window.addEventListener("keyup", e => {
         e.preventDefault();
     }
 });
+
+// control button listeners
+const gridBtn = document.getElementById("gridBtn");
+gridBtn.addEventListener("click", () => {
+    showGrid = !showGrid;
+    drawArea(gameState.area, showGrid);
+});
+
+const pauseBtn = document.getElementById("pauseBtn");
+pauseBtn.addEventListener("click", () => {
+    paused = !paused;
+    pauseBtn.textContent = paused ? "Resume" : "Pause";
+    if (!paused) {
+        lastUpdate = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+});
+
+const frameBtn = document.getElementById("frameBtn");
+/*
+frameBtn.addEventListener("click", () => {
+    if (!paused) return;
+    update(1 / TPS);
+});
+*/
+let repeatTimer = null;
+
+function advanceFrame() {
+    if (!paused) return;
+    update(1 / TPS);
+}
+
+frameBtn.addEventListener("mousedown", e => {
+    e.preventDefault();
+    if (repeatTimer !== null) return;
+    advanceFrame();
+    repeatTimer = setInterval(advanceFrame, 30);
+});
+
+frameBtn.addEventListener("mouseup", () => {
+    clearInterval(repeatTimer);
+    repeatTimer = null;
+});
+

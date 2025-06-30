@@ -2,44 +2,56 @@ const backCanvas = document.getElementById("backCanvas");
 backCanvas.width = window.innerWidth;
 backCanvas.height = window.innerHeight;
 const bgctx = backCanvas.getContext("2d");
+bgctx.fillStyle = "#222";
+bgctx.fillRect(0, 0, backCanvas.width, backCanvas.height);
 
-const canvas = document.getElementById("gameCanvas");
+export const canvas = document.getElementById("gameCanvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
-function fillNodes(nodes, color, halfSize, cols, graph) {
+export function fillNodes(nodes, halfSize, color) {
     bgctx.fillStyle = color;
-    for (const index of nodes) {
-        const n = graph[Math.floor(index / cols)][index % cols];
+    for (const n of nodes) {
         bgctx.fillRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
     }
 }
 
-function outlineNodes(nodes, color, halfSize, cols, graph) {
+export function outlineNodes(nodes, halfSize, color) {
     bgctx.strokeStyle = color;
     bgctx.lineWidth = 1;
-    for (const index of nodes) {
-        const n = graph[Math.floor(index / cols)][index % cols];
+    for (const n of nodes) {
         bgctx.strokeRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
     }
 }
 
-function markNodes(nodes, color, halfSize, cols, graph) {
+export function markNodes(nodes, halfSize, color) {
     bgctx.fillStyle = color;
-    for (const index of nodes) {
-        const n = graph[Math.floor(index / cols)][index % cols];
+    for (const n of nodes) {
         bgctx.beginPath();
         bgctx.arc(n.x, n.y, halfSize / 2, 0, 2 * Math.PI);
         bgctx.fill();
     }
 }
 
-// area is the background which uses the 2nd canvas
-function drawArea(area, showGrid) {
-    bgctx.fillStyle = "#222";
-    bgctx.fillRect(0, 0, backCanvas.width, backCanvas.height);
+export function drawPathLine(nodes, halfSize, color) {
+    bgctx.strokeStyle = color;
+    bgctx.lineWidth = 1;
+    bgctx.beginPath();
+    bgctx.moveTo(nodes[0].x + halfSize, nodes[0].y + halfSize);
+    for (let i = 1; i < nodes.length; i++) {
+        bgctx.lineTo(nodes[i].x + halfSize, nodes[i].y + halfSize);
+    }
+    bgctx.stroke();
+}
 
+export function drawSquare(x, y, halfSize, color) {
+    bgctx.fillStyle = color;
+    bgctx.fillRect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
+}
+
+// area is the background which uses the 2nd canvas
+export function drawArea(area, showGrid) {
     bgctx.fillStyle = "white";
     bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);
 
@@ -81,15 +93,13 @@ function drawEnemies(enemies) {
         let e = enemies[i];
         ctx.beginPath();
         ctx.arc(e.x, e.y, e.radius, 0, 2 * Math.PI);
-        //ctx.fill();
+        ctx.fill();
         ctx.stroke();
     }
 }
 
-function draw(gameState) {
+export function draw(gameState) {
     ctx.clearRect(gameState.area.x, gameState.area.y, gameState.area.width, gameState.area.height);
     drawPlayer(gameState.player);
     drawEnemies(gameState.enemies);
 }
-
-export {canvas, draw, drawArea, fillNodes, outlineNodes, markNodes};

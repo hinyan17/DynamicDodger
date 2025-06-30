@@ -1,8 +1,8 @@
 import Heap from "./heap-js.es5.js";
-import {drawArea, fillNodes, outlineNodes, markNodes} from "./drawer.js"
+import * as Drawer from "./drawer.js"
 
 export default function TAS(gameState) {
-    
+
     const enemyBuffer = gameState.player.radius + 10;
     const nodeSize = gameState.area.nodeSize;
     const halfSize = nodeSize / 2;
@@ -54,11 +54,11 @@ export default function TAS(gameState) {
     const entries = new Map();
     let prevBlocked = new Set();
     let currBlocked = new Set();
-    //updateVertex(goalNode);
-    //computeShortestPath();
+    updateVertex(goalNode);
+    computeShortestPath();
 
     function test() {
-        drawArea(gameState.area, true);
+        Drawer.drawArea(gameState.area, true);
         detectEnemyChanges();
         const nodesToUnblock = prevBlocked.difference(currBlocked);
         const nodesToBlock = currBlocked.difference(prevBlocked);
@@ -66,12 +66,10 @@ export default function TAS(gameState) {
         //fillNodes(nodesToUnblock, "lightgreen", halfSize, cols, graph);
         //fillNodes(nodesToBlock, "lightpink", halfSize, cols, graph);
         fillNodes(currBlocked, "lightgreen", halfSize, cols, graph);
-        /*
-        fillNodes(currBlocked, "lightgreen", halfSize, cols, graph);
-        outlineNodes(prevBlocked, "crimson", halfSize, cols, graph);
-        markNodes(nodesToUnblock, "lightskyblue", halfSize, cols, graph);
-        markNodes(nodesToBlock, "violet", halfSize, cols, graph);
-        */
+        //fillNodes(currBlocked, "lightgreen", halfSize, cols, graph);
+        //outlineNodes(prevBlocked, "crimson", halfSize, cols, graph);
+        //markNodes(nodesToUnblock, "lightskyblue", halfSize, cols, graph);
+        //markNodes(nodesToBlock, "violet", halfSize, cols, graph);
         //console.log(nodesToUnblock, nodesToBlock);
 
         const temp = prevBlocked;
@@ -80,40 +78,67 @@ export default function TAS(gameState) {
         currBlocked.clear();
     }
 
-    function circleOverlapsCell(cx, cy, r, ux, uy) {
-        const dx = Math.max(Math.abs(cx - ux) - halfSize, 0);
-        const dy = Math.max(Math.abs(cy - uy) - halfSize, 0);
-        return dx*dx + dy*dy <= r*r;
+    function test2() {
+        Drawer.drawSquare("blue", 100, 100, 10);
     }
 
-    function detectEnemyChanges() {
-        for (let i = 0; i < gameState.enemies.length; i++) {
-            const radius = gameState.enemies[i].radius + enemyBuffer;
-            const x = gameState.enemies[i].x;
-            const y = gameState.enemies[i].y;
+    function testPath() {
+        Drawer.drawArea(gameState.area, true);
 
-            // refactor this mess later...
-            const minC = Math.max(0, Math.floor((x - gameState.area.x - radius) / nodeSize));
-            const maxC = Math.min(cols - 1, Math.floor((x - gameState.area.x + radius) / nodeSize));
-            const minR = Math.max(0, Math.floor((y - gameState.area.y - radius) / nodeSize));
-            const maxR = Math.min(rows - 1, Math.floor((y - gameState.area.y + radius) / nodeSize));
-
-            for (let r = minR; r <= maxR; r++) {
-                for (let c = minC; c <= maxC; c++) {
-                    const node = graph[r][c];
-                    if (circleOverlapsCell(x, y, radius, node.x, node.y)) {
-                        currBlocked.add(r * cols + c);
-                    }
+        let u = startNode;
+        if (u.rhs === Infinity) {console.log("no path found"); return;}
+        while (u !== goalNode) {
+            let bestEdge = null;
+            let bestCost = Infinity;
+            for (const edge of u.neighbors) {
+                if (edge === null) continue;
+                const newCost = edge.cost + edge.node.g;
+                if (newCost < bestCost) {
+                    bestEdge = edge;
+                    bestCost = newCost;
                 }
             }
+            if (bestEdge === null) {console.log("path terminated"); break;}
+            u = bestEdge.node;
+            Drawer.drawSquare("blue", u.x, u.y, halfSize);
         }
-    }
 
+        detectEnemyChanges();
+        const nodesToUnblock = prevBlocked.difference(currBlocked);
+        const nodesToBlock = currBlocked.difference(prevBlocked);
+        console.log(nodesToUnblock, nodesToBlock);
+
+        if (nodesToUnblock.size > 0 || nodesToBlock.size > 0) {
+            km += heuristic(lastStart, startNode);
+            lastStart = startNode;
+            batchUpdateGraph(nodesToUnblock, false);
+            batchUpdateGraph(nodesToBlock, true);
+            computeShortestPath();
+        }
+
+        const temp = prevBlocked;
+        prevBlocked = currBlocked;
+        currBlocked = temp;
+        currBlocked.clear();
+    }
 
     function main() {
         const t1 = performance.now();
         if (startNode === goalNode) {console.log("reached goal"); return;}
         if (startNode.rhs === Infinity) {console.log("no path found"); return;}
+
+        let bestEdge = null;
+        let bestCost = Infinity;
+        for (const edge of startNode.neighbors) {
+            if (edge === null) continue;
+            const newCost = edge.cost + edge.node.g;
+            if (newCost < bestCost) {
+                bestEdge = edge;
+                bestCost = newCost;
+            }
+        }
+        if (bestEdge === null) {console.log("error"); return;}
+        startNode = bestEdge.node;
 
         // move to startNode, whether changed or not
         gameState.player.x = startNode.x;
@@ -235,6 +260,12 @@ export default function TAS(gameState) {
         }
     }
 
+    function heuristic(node) {
+        const dx = node.x - startNode.x;
+        const dy = node.y - startNode.y;
+        return Math.sqrt(dx*dx + dy*dy);
+    }
+
     function calculateKey(node) {
         const min = Math.min(node.g, node.rhs);
         return {
@@ -244,20 +275,46 @@ export default function TAS(gameState) {
         };
     }
 
-    function heuristic(node) {
-        const dx = node.x - startNode.x;
-        const dy = node.y - startNode.y;
-        return Math.sqrt(dx*dx + dy*dy);
-    }
-
     function nodeFromPos(x, y) {
-        if (x < 0 || y < 0 || x >= areaWidth || y >= areaHeight) throw new Error("Out of bounds");
-        const row = Math.floor(y / nodeSize);
-        const col = Math.floor(x / nodeSize);
-        return graph[row][col];
+        const lx = x - gameState.area.x;
+        const ly = y - gameState.area.y;
+        if (lx < 0 || ly < 0 || lx >= areaWidth || ly >= areaHeight) {
+            throw new Error("Out of bounds");
+        }
+
+        return graph[Math.floor(y / nodeSize)][Math.floor(x / nodeSize)];
     }
 
-    return {test};
+    function circleOverlapsCell(cx, cy, r, ux, uy) {
+        const dx = Math.max(Math.abs(cx - ux) - halfSize, 0);
+        const dy = Math.max(Math.abs(cy - uy) - halfSize, 0);
+        return dx*dx + dy*dy <= r*r;
+    }
+
+    function detectEnemyChanges() {
+        for (let i = 0; i < gameState.enemies.length; i++) {
+            const radius = gameState.enemies[i].radius + enemyBuffer;
+            const x = gameState.enemies[i].x;
+            const y = gameState.enemies[i].y;
+
+            // use local coordinates when dividing by nodeSize to get bounds
+            const minC = Math.max(0, Math.floor((x - gameState.area.x - radius) / nodeSize));
+            const maxC = Math.min(cols - 1, Math.floor((x - gameState.area.x + radius) / nodeSize));
+            const minR = Math.max(0, Math.floor((y - gameState.area.y - radius) / nodeSize));
+            const maxR = Math.min(rows - 1, Math.floor((y - gameState.area.y + radius) / nodeSize));
+
+            for (let r = minR; r <= maxR; r++) {
+                for (let c = minC; c <= maxC; c++) {
+                    const node = graph[r][c];
+                    if (circleOverlapsCell(x, y, radius, node.x, node.y)) {
+                        currBlocked.add(r * cols + c);
+                    }
+                }
+            }
+        }
+    }
+
+    return {main, test, testPath, test2};
 }
 
 
