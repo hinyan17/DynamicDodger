@@ -50,15 +50,12 @@ let paused = false;
 let showGrid = false;
 
 drawArea(gameState.area, showGrid);
-spawnEnemies(100, 12, 80);
+spawnEnemies(150, 15, 110);
 const tasbot = TAS(gameState);
-if (!paused) {
-    requestAnimationFrame(gameLoop);
-}
+if (!paused) requestAnimationFrame(gameLoop);
 
 function gameLoop(timestamp) {
     if (!paused) requestAnimationFrame(gameLoop);
-
     const elapsed = timestamp - lastUpdate;
     if (elapsed < T_INT) return;
 
@@ -66,8 +63,9 @@ function gameLoop(timestamp) {
     update(elapsed / 1000);
 }
 
-// 1 update is 1 tick
-// dt is in seconds
+// 1 update is 1 tick, dt is in seconds
+// must model actual game flow: detect, calculate, move entities
+// server handles moving entities: (send player movement packet, then server moves entities)
 function update(dt) {
     let next = tasbot.testPath();
     tasMovePlayer(next);
@@ -78,8 +76,8 @@ function update(dt) {
 
 function tasMovePlayer(next) {
     if (next === null) return;
-    player.x = next.x + area.nodeSize / 2;
-    player.y = next.y + area.nodeSize / 2;
+    player.x = next.x;
+    player.y = next.y;
 }
 
 function movePlayer(dt) {
@@ -185,6 +183,7 @@ frameBtn.addEventListener("click", () => {
     update(1 / TPS);
 });
 */
+let initialTimer = null;
 let repeatTimer = null;
 
 function advanceFrame() {
@@ -194,13 +193,19 @@ function advanceFrame() {
 
 frameBtn.addEventListener("mousedown", e => {
     e.preventDefault();
-    if (repeatTimer !== null) return;
+    if (initialTimer !== null || repeatTimer !== null) return;
+
     advanceFrame();
-    repeatTimer = setInterval(advanceFrame, 30);
+    initialTimer = setTimeout(() => {
+        advanceFrame();
+        repeatTimer = setInterval(advanceFrame, 1000 / (TPS / 2));
+    }, 250);
 });
 
 frameBtn.addEventListener("mouseup", () => {
+    clearTimeout(initialTimer);
     clearInterval(repeatTimer);
+    initialTimer = null;
     repeatTimer = null;
 });
 

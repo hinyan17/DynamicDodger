@@ -56,7 +56,7 @@ export default function TAS(gameState) {
 
     function astar() {
         if (startNode === goalNode) {
-            console.log("path complete");
+            console.log("reached goal");
             return null;
         }
 
@@ -72,6 +72,9 @@ export default function TAS(gameState) {
         fScore.set(startNode, heuristic(startNode));
         openHeap.push({node: startNode, f: fScore.get(startNode)});
 
+        let best = startNode;
+        let bestH = heuristic(startNode);
+
         while (!openHeap.isEmpty()) {
             const {node: current, f} = openHeap.pop();
             if (f > fScore.get(current)) {
@@ -81,13 +84,18 @@ export default function TAS(gameState) {
                 return reconstructPath(prevs, current);
             }
 
+            const currH = heuristic(current);
+            if (currH < bestH) {
+                best = current;
+                bestH = currH;
+            }
+
             closedSet.add(current);
-            for (const edge of current.neighbors) {
-                const neighbor = edge.node;
+            for (const {node: neighbor, cost} of current.neighbors) {
                 if (closedSet.has(neighbor) || blockedSet.has(neighbor)) {
                     continue;
                 }
-                const tentativeG = gScore.get(current) + edge.cost;
+                const tentativeG = gScore.get(current) + cost;
                 if (tentativeG < (gScore.get(neighbor) ?? Infinity)) {
                     prevs.set(neighbor, current);
                     gScore.set(neighbor, tentativeG);
@@ -96,8 +104,8 @@ export default function TAS(gameState) {
                 }
             }
         }
-        console.log("no path found");
-        return null;
+        console.log("returning partial (or no) path");
+        return reconstructPath(prevs, best);
     }
 
     function reconstructPath(prevs, curr) {
@@ -110,11 +118,13 @@ export default function TAS(gameState) {
     }
 
     function testPath() {
-        Drawer.drawArea(gameState.area, false);
+        Drawer.drawArea(gameState.area, true);
         let path = astar();
-        if (path !== null) {
+        if (path !== null && path.length > 1) {
             //Drawer.fillNodes(path, halfSize, "blue");
-            Drawer.drawPathLine(path, halfSize, "blue");
+            Drawer.fillNode(path[0], halfSize, "red");
+            Drawer.fillNode(path[path.length - 1], halfSize, "green");
+            Drawer.drawPathLine(path, "blue");
             startNode = path[1];
             return startNode;
         }

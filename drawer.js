@@ -10,6 +10,11 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 const ctx = canvas.getContext("2d");
 
+export function fillNode(n, halfSize, color) {
+    bgctx.fillStyle = color;
+    bgctx.fillRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
+}
+
 export function fillNodes(nodes, halfSize, color) {
     bgctx.fillStyle = color;
     for (const n of nodes) {
@@ -34,13 +39,13 @@ export function markNodes(nodes, halfSize, color) {
     }
 }
 
-export function drawPathLine(nodes, halfSize, color) {
+export function drawPathLine(nodes, color) {
     bgctx.strokeStyle = color;
     bgctx.lineWidth = 1;
     bgctx.beginPath();
-    bgctx.moveTo(nodes[0].x + halfSize, nodes[0].y + halfSize);
+    bgctx.moveTo(nodes[0].x, nodes[0].y);
     for (let i = 1; i < nodes.length; i++) {
-        bgctx.lineTo(nodes[i].x + halfSize, nodes[i].y + halfSize);
+        bgctx.lineTo(nodes[i].x, nodes[i].y);
     }
     bgctx.stroke();
 }
