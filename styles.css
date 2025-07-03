@@ -15,22 +15,14 @@ body {
 }
 
 #controlBar button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    font-family: monospace;
     font-size: 1.125rem;
     user-select: none;
-    text-align: center;
-}
-
-#pauseBtn {
-    padding: 10px;
-    min-width: 10ch;
-}
-
-#frameBtn {
     padding: 10px 15px;
-}
-
-#gridBtn {
-    padding: 10px 15px;
+    width: 5ch;
 }
 
 canvas {

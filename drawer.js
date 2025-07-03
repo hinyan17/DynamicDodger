@@ -1,3 +1,4 @@
+// background canvas for drawing area, grid lines, nodes, paths
 const backCanvas = document.getElementById("backCanvas");
 backCanvas.width = window.innerWidth;
 backCanvas.height = window.innerHeight;
@@ -5,6 +6,7 @@ const bgctx = backCanvas.getContext("2d");
 bgctx.fillStyle = "#222";
 bgctx.fillRect(0, 0, backCanvas.width, backCanvas.height);
 
+// normal game canvas for drawing player, enemies
 export const canvas = document.getElementById("gameCanvas");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -55,7 +57,6 @@ export function drawSquare(x, y, halfSize, color) {
     bgctx.fillRect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
 }
 
-// area is the background which uses the 2nd canvas
 export function drawArea(area, showGrid) {
     bgctx.fillStyle = "white";
     bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);

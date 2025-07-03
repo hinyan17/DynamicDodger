@@ -1,15 +1,15 @@
 console.log("hello skibidies");
 
-import {canvas, draw, drawArea} from "./drawer.js";
+import * as Drawer from "./drawer.js";
 import TAS from "./astarTas.js"
 
 const area = {
     x: 0,
     y: 110,
-    width: canvas.width,
+    width: Drawer.canvas.width,
     height: 720,
-    leftSafeX: canvas.width / 12,
-    rightSafeX: canvas.width - canvas.width / 12,
+    leftSafeX: Drawer.canvas.width / 12,
+    rightSafeX: Drawer.canvas.width - Drawer.canvas.width / 12,
     nodeSize: 16
 };
 class Player {
@@ -30,36 +30,33 @@ class Enemy {
     }
 }
 
-const keys = {
-    ArrowUp: false,
-    ArrowDown: false,
-    ArrowLeft: false,
-    ArrowRight: false
+const keys = {KeyW: false, KeyA: false, KeyS: false, KeyD: false,
+    ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false};
+const settings = {
+    TPS: 30,
+    paused: false,
+    showGrid: true,
+    tasOn: false
 };
+settings.T_INT = 1000 / settings.TPS;       // ticks per second, tick interval
 
 const player = new Player();
 const enemies = [];
 const gameState = {area, player, enemies};
-window.gameState = gameState;
+//window.gameState = gameState;
 
-// ticks per second, tick interval
-const TPS = 30;
-const T_INT = 1000 / TPS;
 let lastUpdate = performance.now();
-let paused = false;
-let showGrid = false;
-
-drawArea(gameState.area, showGrid);
-spawnEnemies(150, 15, 110);
-const tasbot = TAS(gameState);
-if (!paused) requestAnimationFrame(gameLoop);
+Drawer.drawArea(gameState.area, settings.showGrid);
+spawnEnemies(130, 15, 110);
+const tasbot = TAS(gameState, settings);
+if (!settings.paused) requestAnimationFrame(gameLoop);
 
 function gameLoop(timestamp) {
-    if (!paused) requestAnimationFrame(gameLoop);
+    if (!settings.paused) requestAnimationFrame(gameLoop);
     const elapsed = timestamp - lastUpdate;
-    if (elapsed < T_INT) return;
+    if (elapsed < settings.T_INT) return;
 
-    lastUpdate = timestamp - (elapsed % T_INT);
+    lastUpdate = timestamp - (elapsed % settings.T_INT);
     update(elapsed / 1000);
 }
 
@@ -67,11 +64,14 @@ function gameLoop(timestamp) {
 // must model actual game flow: detect, calculate, move entities
 // server handles moving entities: (send player movement packet, then server moves entities)
 function update(dt) {
-    let next = tasbot.testPath();
-    tasMovePlayer(next);
-    //movePlayer(dt);
+    if (settings.tasOn) {
+        let next = tasbot.testPath();
+        tasMovePlayer(next);
+    } else {
+        movePlayer(dt);
+    }
     moveEnemies(dt);
-    draw(gameState);
+    Drawer.draw(gameState);
 }
 
 function tasMovePlayer(next) {
@@ -82,10 +82,10 @@ function tasMovePlayer(next) {
 
 function movePlayer(dt) {
     let dx = 0, dy = 0;
-    if (keys.ArrowLeft) dx -= 1;
-    if (keys.ArrowRight) dx += 1;
-    if (keys.ArrowUp) dy -= 1;
-    if (keys.ArrowDown) dy += 1;
+    if (keys.ArrowLeft || keys.KeyA) dx -= 1;
+    if (keys.ArrowRight || keys.KeyD) dx += 1;
+    if (keys.ArrowUp || keys.KeyW) dy -= 1;
+    if (keys.ArrowDown || keys.KeyS) dy += 1;
     if (dx == 0 && dy == 0) return;
 
     player.x += dx * 500 * dt;
@@ -126,8 +126,8 @@ function moveEnemies(dt) {
 }
 
 function downPlayer() {
-    paused = true;
-    pauseBtn.textContent = "Resume";
+    settings.paused = true;
+    pauseBtn.textContent = ">>";
 }
 
 function spawnEnemies(num, radius=15, vel=200) {
@@ -146,15 +146,15 @@ function spawnEnemies(num, radius=15, vel=200) {
 
 // input listeners
 window.addEventListener("keydown", e => {
-    if (e.key in keys) {
-        keys[e.key] = true;
+    if (e.code in keys) {
+        keys[e.code] = true;
         e.preventDefault();
     }
 });
 
 window.addEventListener("keyup", e => {
-    if (e.key in keys) {
-        keys[e.key] = false;
+    if (e.code in keys) {
+        keys[e.code] = false;
         e.preventDefault();
     }
 });
@@ -162,15 +162,20 @@ window.addEventListener("keyup", e => {
 // control button listeners
 const gridBtn = document.getElementById("gridBtn");
 gridBtn.addEventListener("click", () => {
-    showGrid = !showGrid;
-    drawArea(gameState.area, showGrid);
+    settings.showGrid = !settings.showGrid;
+    Drawer.drawArea(gameState.area, settings.showGrid);
+});
+
+const tasBtn = document.getElementById("tasBtn");
+tasBtn.addEventListener("click", () => {
+    settings.tasOn = !settings.tasOn;
 });
 
 const pauseBtn = document.getElementById("pauseBtn");
 pauseBtn.addEventListener("click", () => {
-    paused = !paused;
-    pauseBtn.textContent = paused ? "Resume" : "Pause";
-    if (!paused) {
+    settings.paused = !settings.paused;
+    pauseBtn.textContent = settings.paused ? ">>" : "||";
+    if (!settings.paused) {
         lastUpdate = performance.now();
         requestAnimationFrame(gameLoop);
     }
@@ -179,16 +184,16 @@ pauseBtn.addEventListener("click", () => {
 const frameBtn = document.getElementById("frameBtn");
 /*
 frameBtn.addEventListener("click", () => {
-    if (!paused) return;
-    update(1 / TPS);
+    if (!settings.paused) return;
+    update(1 / settings.TPS);
 });
 */
 let initialTimer = null;
 let repeatTimer = null;
 
 function advanceFrame() {
-    if (!paused) return;
-    update(1 / TPS);
+    if (!settings.paused) return;
+    update(1 / settings.TPS);
 }
 
 frameBtn.addEventListener("mousedown", e => {
@@ -198,7 +203,7 @@ frameBtn.addEventListener("mousedown", e => {
     advanceFrame();
     initialTimer = setTimeout(() => {
         advanceFrame();
-        repeatTimer = setInterval(advanceFrame, 1000 / (TPS / 2));
+        repeatTimer = setInterval(advanceFrame, 1000 / (settings.TPS / 3));
     }, 250);
 });
 
@@ -208,4 +213,3 @@ frameBtn.addEventListener("mouseup", () => {
     initialTimer = null;
     repeatTimer = null;
 });
-

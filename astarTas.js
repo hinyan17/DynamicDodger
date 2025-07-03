@@ -1,7 +1,7 @@
 import Heap from "./heap-js.es5.js";
 import * as Drawer from "./drawer.js"
 
-export default function TAS(gameState) {
+export default function TAS(gameState, settings) {
 
     const enemyBuffer = gameState.player.radius + 6;
     const nodeSize = gameState.area.nodeSize;
@@ -104,7 +104,11 @@ export default function TAS(gameState) {
                 }
             }
         }
-        console.log("returning partial (or no) path");
+        if (best === startNode) {
+            console.log("returning no path");
+        } else {
+            console.log("returning partial path");
+        }
         return reconstructPath(prevs, best);
     }
 
@@ -118,7 +122,7 @@ export default function TAS(gameState) {
     }
 
     function testPath() {
-        Drawer.drawArea(gameState.area, true);
+        Drawer.drawArea(gameState.area, settings.showGrid);
         let path = astar();
         if (path !== null && path.length > 1) {
             //Drawer.fillNodes(path, halfSize, "blue");
