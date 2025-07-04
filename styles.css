@@ -6,9 +6,32 @@ body {
     width: 100%;
 }
 
-#controlBar {
+#infoBar {
     position: absolute;
     top: 20px;
+    left: 20px;
+    background-color:white;
+    color:black;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 1rem;
+    user-select: none;
+    z-index: 10;
+}
+
+#infoBar p {
+    display: flex;
+    margin: 0;
+    padding: 2px 0;
+}
+
+#infoBar span {
+    margin-left: 0.25em;
+}
+
+#controlBar {
+    position: absolute;
+    top: 45px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 10;
@@ -18,11 +41,11 @@ body {
     display: inline-flex;
     justify-content: center;
     align-items: center;
-    font-family: monospace;
-    font-size: 1.125rem;
-    user-select: none;
     padding: 10px 15px;
     width: 5ch;
+    font-family: monospace;
+    font-size: 1.25rem;
+    user-select: none;
 }
 
 canvas {

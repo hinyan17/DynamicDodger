@@ -74,14 +74,16 @@ export default function TAS(gameState, settings) {
 
         let best = startNode;
         let bestH = heuristic(startNode);
+        let expansions = 0;
 
         while (!openHeap.isEmpty()) {
+            expansions++;
             const {node: current, f} = openHeap.pop();
             if (f > fScore.get(current)) {
                 continue;
             }
             if (current === goalNode) {
-                return reconstructPath(prevs, current);
+                return reconstructPath(prevs, current, expansions);
             }
 
             const currH = heuristic(current);
@@ -109,10 +111,11 @@ export default function TAS(gameState, settings) {
         } else {
             console.log("returning partial path");
         }
-        return reconstructPath(prevs, best);
+        return reconstructPath(prevs, best, expansions);
     }
 
-    function reconstructPath(prevs, curr) {
+    function reconstructPath(prevs, curr, expansions) {
+        //console.log(expansions);
         const path = [curr];
         while (prevs.has(curr)) {
             curr = prevs.get(curr);
@@ -181,5 +184,5 @@ export default function TAS(gameState, settings) {
         }
     }
 
-    return {testPath};
+    return {rows, cols, testPath};
 }

@@ -5,7 +5,7 @@ import TAS from "./astarTas.js"
 
 const area = {
     x: 0,
-    y: 110,
+    y: 140,
     width: Drawer.canvas.width,
     height: 720,
     leftSafeX: Drawer.canvas.width / 12,
@@ -47,7 +47,8 @@ const gameState = {area, player, enemies};
 
 let lastUpdate = performance.now();
 Drawer.drawArea(gameState.area, settings.showGrid);
-spawnEnemies(130, 15, 110);
+const enemyInfo = {count: 130, size: 15, speed: 110};
+spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const tasbot = TAS(gameState, settings);
 if (!settings.paused) requestAnimationFrame(gameLoop);
 
@@ -156,6 +157,23 @@ window.addEventListener("keyup", e => {
     if (e.code in keys) {
         keys[e.code] = false;
         e.preventDefault();
+    }
+});
+
+const tpsSpan = document.getElementById("tpsSpan");
+tpsSpan.textContent = settings.TPS;
+const enemySpan = document.getElementById("enemySpan");
+enemySpan.textContent = enemyInfo.count;
+const nodeSpan = document.getElementById("nodeSpan");
+nodeSpan.textContent = `${tasbot.rows * tasbot.cols}, (${tasbot.rows} x ${tasbot.cols})`;
+
+const infoBar = document.getElementById("infoBar");
+infoBar.style.opacity = "1";
+infoBar.addEventListener("click", () => {
+    if (infoBar.style.opacity === "1") {
+        infoBar.style.opacity = "0";
+    } else {
+        infoBar.style.opacity = "1";
     }
 });
 
