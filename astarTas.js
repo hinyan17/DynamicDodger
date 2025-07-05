@@ -74,17 +74,15 @@ export default function TAS(gameState, settings) {
 
         let best = startNode;
         let bestH = heuristic(startNode);
-        let expansions = 0;
+        //let expansions = 0;
+        // agent's field of view radius squared
+        const r2 = (nodeSize * 50)**2;
 
         while (!openHeap.isEmpty()) {
-            expansions++;
+            //expansions++;
             const {node: current, f} = openHeap.pop();
-            if (f > fScore.get(current)) {
-                continue;
-            }
-            if (current === goalNode) {
-                return reconstructPath(prevs, current, expansions);
-            }
+            if (f > fScore.get(current)) continue;
+            if (current === goalNode) return reconstructPath(prevs, current);
 
             const currH = heuristic(current);
             if (currH < bestH) {
@@ -93,29 +91,28 @@ export default function TAS(gameState, settings) {
             }
 
             closedSet.add(current);
-            for (const {node: neighbor, cost} of current.neighbors) {
-                if (closedSet.has(neighbor) || blockedSet.has(neighbor)) {
-                    continue;
-                }
+            for (const {node: nbr, cost} of current.neighbors) {
+                if (closedSet.has(nbr) || blockedSet.has(nbr)) continue;
+                
+                // limit search horizon to some distance R from startNode
+                const dx = nbr.x - startNode.x;
+                const dy = nbr.y - startNode.y;
+                if (dx*dx + dy*dy > r2) continue;
+
                 const tentativeG = gScore.get(current) + cost;
-                if (tentativeG < (gScore.get(neighbor) ?? Infinity)) {
-                    prevs.set(neighbor, current);
-                    gScore.set(neighbor, tentativeG);
-                    fScore.set(neighbor, tentativeG + heuristic(neighbor));
-                    openHeap.push({node: neighbor, f: fScore.get(neighbor)});
+                if (tentativeG < (gScore.get(nbr) ?? Infinity)) {
+                    prevs.set(nbr, current);
+                    gScore.set(nbr, tentativeG);
+                    fScore.set(nbr, tentativeG + heuristic(nbr));
+                    openHeap.push({node: nbr, f: fScore.get(nbr)});
                 }
             }
         }
-        if (best === startNode) {
-            console.log("returning no path");
-        } else {
-            console.log("returning partial path");
-        }
-        return reconstructPath(prevs, best, expansions);
+        console.log(best === startNode ? "returning no path" : "returning partial path");
+        return reconstructPath(prevs, best);
     }
 
-    function reconstructPath(prevs, curr, expansions) {
-        //console.log(expansions);
+    function reconstructPath(prevs, curr) {
         const path = [curr];
         while (prevs.has(curr)) {
             curr = prevs.get(curr);
