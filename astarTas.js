@@ -3,7 +3,7 @@ import * as Drawer from "./drawer.js"
 
 export default function TAS(gameState, settings) {
 
-    const enemyBuffer = gameState.player.radius + 6;
+    const enemyBuffer = gameState.player.radius + 5;
     const nodeSize = gameState.area.nodeSize;
     const halfSize = nodeSize / 2;
     const diagSize = nodeSize * Math.SQRT2;
@@ -12,19 +12,36 @@ export default function TAS(gameState, settings) {
     const cols = Math.ceil(areaWidth / nodeSize);
     const rows = Math.ceil(areaHeight / nodeSize);
     const graph = [];
-    console.log(rows, cols, rows * cols);
 
     //let nodeId = 0;
+    //const pblocked = new Set();
     for (let r = 0; r < rows; r++) {
         graph[r] = [];
         for (let c = 0; c < cols; c++) {
+            const x = c * nodeSize + halfSize + gameState.area.x;
+            const y = r * nodeSize + halfSize + gameState.area.y;
+            const inBounds = (
+                x - gameState.player.radius >= gameState.area.x &&
+                x + gameState.player.radius < gameState.area.x + areaWidth &&
+                y - gameState.player.radius >= gameState.area.y &&
+                y + gameState.player.radius < gameState.area.y + areaHeight
+            );
+            
             graph[r][c] = {
-                x: c * nodeSize + halfSize + gameState.area.x,
-                y: r * nodeSize + halfSize + gameState.area.y,
-                neighbors: []
+                x: x,
+                y: y,
+                neighbors: [],
+                permBlocked: !inBounds,
+                runId: 0,
+                g: Infinity,
+                f: Infinity,
+                prev: null,
+                closed: false
             };
+            //if (!inBounds) pblocked.add(graph[r][c]);
         }
     }
+    //Drawer.fillNodes(pblocked, halfSize, "orange");
 
     const dirs = [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0], [1, -1], [0, -1], [-1, -1]];
     for (let r = 0; r < rows; r++) {
@@ -44,15 +61,13 @@ export default function TAS(gameState, settings) {
         }
     }
 
+    let currentRunId = -1;
     let startNode = nodeFromPos(80, gameState.area.y + areaHeight / 2);
     let goalNode = nodeFromPos(areaWidth - 80, gameState.area.y + areaHeight / 2);
     const comparator = (a, b) => a.f - b.f;
     const openHeap = new Heap(comparator);
-    const closedSet = new Set();
     const blockedSet = new Set();
-    const gScore = new Map();
-    const fScore = new Map();
-    const prevs = new Map();
+    // g, f, prev, and closed are now built into the graph with runId
 
     function astar() {
         if (startNode === goalNode) {
@@ -60,29 +75,28 @@ export default function TAS(gameState, settings) {
             return null;
         }
 
+        currentRunId++;
         openHeap.clear();
-        closedSet.clear();
-        blockedSet.clear();
-        gScore.clear();
-        fScore.clear();
-        prevs.clear();
         detectEnemyChanges(blockedSet);
 
-        gScore.set(startNode, 0);
-        fScore.set(startNode, heuristic(startNode));
-        openHeap.push({node: startNode, f: fScore.get(startNode)});
+        lazyInit(startNode);
+        startNode.g = 0;
+        startNode.f = heuristic(startNode);
+        openHeap.push({node: startNode, f: startNode.f});
 
         let best = startNode;
         let bestH = heuristic(startNode);
         //let expansions = 0;
         // agent's field of view radius squared
-        const r2 = (nodeSize * 50)**2;
+        const r2 = (nodeSize * 40)**2;
 
         while (!openHeap.isEmpty()) {
             //expansions++;
             const {node: current, f} = openHeap.pop();
-            if (f > fScore.get(current)) continue;
-            if (current === goalNode) return reconstructPath(prevs, current);
+            lazyInit(current);
+            if (f > current.f) continue;
+            if (current.closed) continue;
+            if (current === goalNode) return reconstructPath(current);
 
             const currH = heuristic(current);
             if (currH < bestH) {
@@ -90,33 +104,44 @@ export default function TAS(gameState, settings) {
                 bestH = currH;
             }
 
-            closedSet.add(current);
+            current.closed = true;
             for (const {node: nbr, cost} of current.neighbors) {
-                if (closedSet.has(nbr) || blockedSet.has(nbr)) continue;
-                
+                lazyInit(nbr);
+                if (blockedSet.has(nbr) || nbr.closed || nbr.permBlocked) continue;
+
                 // limit search horizon to some distance R from startNode
                 const dx = nbr.x - startNode.x;
                 const dy = nbr.y - startNode.y;
                 if (dx*dx + dy*dy > r2) continue;
 
-                const tentativeG = gScore.get(current) + cost;
-                if (tentativeG < (gScore.get(nbr) ?? Infinity)) {
-                    prevs.set(nbr, current);
-                    gScore.set(nbr, tentativeG);
-                    fScore.set(nbr, tentativeG + heuristic(nbr));
-                    openHeap.push({node: nbr, f: fScore.get(nbr)});
+                const tentativeG = current.g + cost;
+                if (tentativeG < nbr.g) {
+                    nbr.g = tentativeG;
+                    nbr.f = tentativeG + heuristic(nbr);
+                    nbr.prev = current;
+                    openHeap.push({node: nbr, f: nbr.f});
                 }
             }
         }
         console.log(best === startNode ? "returning no path" : "returning partial path");
-        return reconstructPath(prevs, best);
+        return reconstructPath(best);
     }
 
-    function reconstructPath(prevs, curr) {
-        const path = [curr];
-        while (prevs.has(curr)) {
-            curr = prevs.get(curr);
-            path.push(curr);
+    function lazyInit(node) {
+        if (node.runId !== currentRunId) {
+            node.runId = currentRunId;
+            node.g = Infinity;
+            node.f = Infinity;
+            node.prev = null;
+            node.closed = false;
+        }
+    }
+
+    function reconstructPath(current) {
+        const path = [current];
+        while (current.prev !== null) {
+            current = current.prev;
+            path.push(current);
         }
         return path.reverse();
     }
@@ -132,8 +157,6 @@ export default function TAS(gameState, settings) {
             startNode = path[1];
             return startNode;
         }
-        //Drawer.drawSquare(startNode.x, startNode.y, halfSize, "red");
-        //Drawer.drawSquare(goalNode.x, goalNode.y, halfSize, "lightgreen");
         return null;
     }
 
@@ -159,6 +182,7 @@ export default function TAS(gameState, settings) {
     }
 
     function detectEnemyChanges(blocked) {
+        blocked.clear();
         for (let i = 0; i < gameState.enemies.length; i++) {
             const radius = gameState.enemies[i].radius + enemyBuffer;
             const x = gameState.enemies[i].x;
