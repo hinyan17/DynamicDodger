@@ -4,6 +4,7 @@ import * as Drawer from "./drawer.js"
 export default function TAS(gameState, settings) {
 
     const enemyBuffer = gameState.player.radius + 5;
+    /*
     const nodeSize = gameState.area.nodeSize;
     const halfSize = nodeSize / 2;
     const diagSize = nodeSize * Math.SQRT2;
@@ -11,6 +12,14 @@ export default function TAS(gameState, settings) {
     const areaHeight = gameState.area.height;
     const cols = Math.ceil(areaWidth / nodeSize);
     const rows = Math.ceil(areaHeight / nodeSize);
+    */
+    const areaWidth = gameState.area.width;
+    const areaHeight = gameState.area.height;
+    const cols = gameState.area.cols;
+    const rows = gameState.area.rows;
+    const nodeSize = gameState.area.nodeSize;
+    const halfSize = nodeSize / 2;
+    const diagSize = nodeSize * Math.SQRT2;
     const graph = [];
 
     //let nodeId = 0;
@@ -54,16 +63,13 @@ export default function TAS(gameState, settings) {
                     const cost = (dr !== 0 && dc !== 0) ? diagSize : nodeSize;
                     u.neighbors.push({node: graph[newR][newC], cost: cost});
                 }
-                //else {
-                //    u.neighbors.push(null);
-                //}
             }
         }
     }
 
     let currentRunId = -1;
-    let startNode = nodeFromPos(80, gameState.area.y + areaHeight / 2);
-    let goalNode = nodeFromPos(areaWidth - 80, gameState.area.y + areaHeight / 2);
+    let startNode = nodeFromPos(gameState.area.leftSafeX / 2, gameState.area.y + areaHeight / 2);
+    let goalNode = nodeFromPos(gameState.area.rightSafeX + (gameState.area.leftSafeX / 2), gameState.area.y + areaHeight / 2);
     const comparator = (a, b) => a.f - b.f;
     const openHeap = new Heap(comparator);
     const blockedSet = new Set();
@@ -205,5 +211,5 @@ export default function TAS(gameState, settings) {
         }
     }
 
-    return {rows, cols, testPath};
+    return {rows, cols, nodeSize, testPath};
 }

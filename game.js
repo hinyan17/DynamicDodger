@@ -2,21 +2,13 @@ console.log("hello skibidies");
 
 import * as Drawer from "./drawer.js";
 import TAS from "./astarTas.js"
-
-const area = {
-    x: 0,
-    y: 130,
-    width: Drawer.canvas.width,
-    height: 720,
-    leftSafeX: Drawer.canvas.width / 12,
-    rightSafeX: Drawer.canvas.width - Drawer.canvas.width / 12,
-    nodeSize: 16
-};
 class Player {
-    constructor() {
-        this.radius = 20;
+    constructor(r) {
+        this.radius = r;
         this.x = (area.leftSafeX - area.x) / 2;
         this.y = (area.height / 2) + area.y;
+        this.keys = {KeyW: false, KeyA: false, KeyS: false, KeyD: false,
+            ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false};
     }
 }
 
@@ -30,8 +22,18 @@ class Enemy {
     }
 }
 
-const keys = {KeyW: false, KeyA: false, KeyS: false, KeyD: false,
-    ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false};
+const area = {
+    x: 0,
+    y: 130,
+    cols: 144,
+    rows: 50,
+    nodeSize: 9
+};
+area.width = area.cols * area.nodeSize;
+area.height = area.rows * area.nodeSize;
+area.leftSafeX = area.x + area.nodeSize * 8;
+area.rightSafeX = area.x + area.width - (area.nodeSize * 8);
+
 const settings = {
     TPS: 30,
     paused: false,
@@ -40,16 +42,17 @@ const settings = {
 };
 settings.T_INT = 1000 / settings.TPS;       // ticks per second, tick interval
 
-const player = new Player();
+const player = new Player(12);
 const enemies = [];
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
 
 let lastUpdate = performance.now();
-Drawer.drawArea(gameState.area, settings.showGrid);
-const enemyInfo = {count: 120, size: 15, speed: 110};
+Drawer.drawArea(area, settings.showGrid);
+const enemyInfo = {count: 120, size: 9, speed: 110};
 spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const tasbot = TAS(gameState, settings);
+
 if (!settings.paused) requestAnimationFrame(gameLoop);
 
 function gameLoop(timestamp) {
@@ -83,10 +86,10 @@ function tasMovePlayer(next) {
 
 function movePlayer(dt) {
     let dx = 0, dy = 0;
-    if (keys.ArrowLeft || keys.KeyA) dx -= 1;
-    if (keys.ArrowRight || keys.KeyD) dx += 1;
-    if (keys.ArrowUp || keys.KeyW) dy -= 1;
-    if (keys.ArrowDown || keys.KeyS) dy += 1;
+    if (player.keys.ArrowLeft || player.keys.KeyA) dx -= 1;
+    if (player.keys.ArrowRight || player.keys.KeyD) dx += 1;
+    if (player.keys.ArrowUp || player.keys.KeyW) dy -= 1;
+    if (player.keys.ArrowDown || player.keys.KeyS) dy += 1;
     if (dx == 0 && dy == 0) return;
 
     player.x += dx * 500 * dt;
@@ -147,15 +150,15 @@ function spawnEnemies(num, radius=15, vel=200) {
 
 // input listeners
 window.addEventListener("keydown", e => {
-    if (e.code in keys) {
-        keys[e.code] = true;
+    if (e.code in player.keys) {
+        player.keys[e.code] = true;
         e.preventDefault();
     }
 });
 
 window.addEventListener("keyup", e => {
-    if (e.code in keys) {
-        keys[e.code] = false;
+    if (e.code in player.keys) {
+        player.keys[e.code] = false;
         e.preventDefault();
     }
 });
@@ -165,23 +168,19 @@ tpsSpan.textContent = settings.TPS;
 const enemySpan = document.getElementById("enemySpan");
 enemySpan.textContent = enemyInfo.count;
 const nodeSpan = document.getElementById("nodeSpan");
-nodeSpan.textContent = `${tasbot.rows * tasbot.cols} (${tasbot.rows} x ${tasbot.cols})`;
+nodeSpan.textContent = `${tasbot.cols * tasbot.rows} (${tasbot.cols}x${tasbot.rows})`;
 
 const infoBar = document.getElementById("infoBar");
 infoBar.style.opacity = "1";
 infoBar.addEventListener("click", () => {
-    if (infoBar.style.opacity === "1") {
-        infoBar.style.opacity = "0";
-    } else {
-        infoBar.style.opacity = "1";
-    }
+    infoBar.style.opacity = infoBar.style.opacity === "1" ? "0" : "1";
 });
 
 // control button listeners
 const gridBtn = document.getElementById("gridBtn");
 gridBtn.addEventListener("click", () => {
     settings.showGrid = !settings.showGrid;
-    Drawer.drawArea(gameState.area, settings.showGrid);
+    Drawer.drawArea(area, settings.showGrid);
 });
 
 const tasBtn = document.getElementById("tasBtn");
@@ -200,12 +199,6 @@ pauseBtn.addEventListener("click", () => {
 });
 
 const frameBtn = document.getElementById("frameBtn");
-/*
-frameBtn.addEventListener("click", () => {
-    if (!settings.paused) return;
-    update(1 / settings.TPS);
-});
-*/
 let initialTimer = null;
 let repeatTimer = null;
 
