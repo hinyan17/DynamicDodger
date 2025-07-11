@@ -57,6 +57,14 @@ export function drawSquare(x, y, halfSize, color) {
     bgctx.fillRect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
 }
 
+export function drawCircle(x, y, radius, color) {
+    bgctx.strokeStyle = color;
+    bgctx.lineWidth = 1;
+    bgctx.beginPath();
+    bgctx.arc(x, y, radius, 0, 2 * Math.PI);
+    bgctx.stroke();
+}
+
 export function drawArea(area, showGrid) {
     bgctx.fillStyle = "white";
     bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);

@@ -70,7 +70,13 @@ export default function TAS(gameState, settings) {
     let currentRunId = -1;
     let startNode = nodeFromPos(gameState.area.leftSafeX / 2, gameState.area.y + areaHeight / 2);
     let goalNode = nodeFromPos(gameState.area.rightSafeX + (gameState.area.leftSafeX / 2), gameState.area.y + areaHeight / 2);
-    const comparator = (a, b) => a.f - b.f;
+    const comparator = (a, b) => {
+        if (a.f !== b.f) {
+            return a.f - b.f;
+        }
+        return b.node.g - a.node.g;
+    };
+    //const comparator = (a, b) => a.f - b.f;
     const openHeap = new Heap(comparator);
     const blockedSet = new Set();
     // g, f, prev, and closed are now built into the graph with runId
@@ -129,7 +135,7 @@ export default function TAS(gameState, settings) {
                 }
             }
         }
-        console.log(best === startNode ? "returning no path" : "returning partial path");
+        //console.log(best === startNode ? "returning no path" : "returning partial path");
         return reconstructPath(best);
     }
 
@@ -156,14 +162,17 @@ export default function TAS(gameState, settings) {
         Drawer.drawArea(gameState.area, settings.showGrid);
         let path = astar();
         if (path !== null && path.length > 1) {
-            //Drawer.fillNodes(path, halfSize, "blue");
             Drawer.fillNode(path[0], halfSize, "red");
             Drawer.fillNode(path[path.length - 1], halfSize, "green");
             Drawer.drawPathLine(path, "blue");
-            startNode = path[1];
-            return startNode;
+            //startNode = path[1];
+            return path;
         }
         return null;
+    }
+
+    function updateStart() {
+        startNode = nodeFromPos(gameState.player.x, gameState.player.y);
     }
 
     function heuristic(node) {
@@ -211,5 +220,5 @@ export default function TAS(gameState, settings) {
         }
     }
 
-    return {rows, cols, nodeSize, testPath};
+    return {rows, cols, nodeSize, testPath, updateStart};
 }

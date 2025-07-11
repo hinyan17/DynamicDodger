@@ -1,10 +1,12 @@
 console.log("hello skibidies");
 
 import * as Drawer from "./drawer.js";
-import TAS from "./astarTas.js"
+import TAS from "./astarTas.js";
+import PurePursuit from "./purePursuit.js";
 class Player {
-    constructor(r) {
+    constructor(r, vel) {
         this.radius = r;
+        this.maxVel = vel;
         this.x = (area.leftSafeX - area.x) / 2;
         this.y = (area.height / 2) + area.y;
         this.keys = {KeyW: false, KeyA: false, KeyS: false, KeyD: false,
@@ -27,7 +29,7 @@ const area = {
     y: 130,
     cols: 144,
     rows: 50,
-    nodeSize: 9
+    nodeSize: 13
 };
 area.width = area.cols * area.nodeSize;
 area.height = area.rows * area.nodeSize;
@@ -42,16 +44,16 @@ const settings = {
 };
 settings.T_INT = 1000 / settings.TPS;       // ticks per second, tick interval
 
-const player = new Player(12);
-const enemies = [];
+const player = new Player(20, 300);
+const enemyInfo = {count: 120, size: 15, speed: 110};   // expand enemyInfo have different enemy type objects
+const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
 
+const tasbot = TAS(gameState, settings);
+const controller = PurePursuit(player, settings.T_INT);
 let lastUpdate = performance.now();
 Drawer.drawArea(area, settings.showGrid);
-const enemyInfo = {count: 120, size: 9, speed: 110};
-spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
-const tasbot = TAS(gameState, settings);
 
 if (!settings.paused) requestAnimationFrame(gameLoop);
 
@@ -69,8 +71,16 @@ function gameLoop(timestamp) {
 // server handles moving entities: (send player movement packet, then server moves entities)
 function update(dt) {
     if (settings.tasOn) {
-        let next = tasbot.testPath();
-        tasMovePlayer(next);
+        const path = tasbot.testPath();
+        //tasMovePlayer(path[1]);
+        //tasbot.updateStart();
+        ///*
+        const v = controller.computeDesiredVelocity(path, dt);
+        player.x += v.vx * dt;
+        player.y += v.vy * dt;
+        tasbot.updateStart();
+        //console.log(dt, player.x, player.y, v);
+        //*/
     } else {
         movePlayer(dt);
     }
@@ -135,17 +145,19 @@ function downPlayer() {
 }
 
 function spawnEnemies(num, radius=15, vel=200) {
-    let minX = area.leftSafeX + radius, maxX = area.rightSafeX - radius;
-    let minY = area.y + radius, maxY = area.y + area.height - radius;
+    const minX = area.leftSafeX + radius, maxX = area.rightSafeX - radius;
+    const minY = area.y + radius, maxY = area.y + area.height - radius;
 
+    const enemies = [];
     for (let i = 0; i < num; i++) {
-        let x = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
-        let y = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
-        let angle = Math.random() * 2 * Math.PI;
-        let vx = Math.cos(angle) * vel;
-        let vy = Math.sin(angle) * vel;
+        const x = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
+        const y = Math.floor(Math.random() * (maxY - minY + 1)) + minY;
+        const angle = Math.random() * 2 * Math.PI;
+        const vx = Math.cos(angle) * vel;
+        const vy = Math.sin(angle) * vel;
         enemies.push(new Enemy(radius, x, y, vx, vy));
     }
+    return enemies;
 }
 
 // input listeners
@@ -163,6 +175,7 @@ window.addEventListener("keyup", e => {
     }
 });
 
+// basic information display
 const tpsSpan = document.getElementById("tpsSpan");
 tpsSpan.textContent = settings.TPS;
 const enemySpan = document.getElementById("enemySpan");
