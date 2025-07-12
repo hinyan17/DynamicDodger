@@ -4,15 +4,6 @@ import * as Drawer from "./drawer.js"
 export default function TAS(gameState, settings) {
 
     const enemyBuffer = gameState.player.radius + 5;
-    /*
-    const nodeSize = gameState.area.nodeSize;
-    const halfSize = nodeSize / 2;
-    const diagSize = nodeSize * Math.SQRT2;
-    const areaWidth = gameState.area.width;
-    const areaHeight = gameState.area.height;
-    const cols = Math.ceil(areaWidth / nodeSize);
-    const rows = Math.ceil(areaHeight / nodeSize);
-    */
     const areaWidth = gameState.area.width;
     const areaHeight = gameState.area.height;
     const cols = gameState.area.cols;
@@ -22,7 +13,6 @@ export default function TAS(gameState, settings) {
     const diagSize = nodeSize * Math.SQRT2;
     const graph = [];
 
-    //let nodeId = 0;
     //const pblocked = new Set();
     for (let r = 0; r < rows; r++) {
         graph[r] = [];
@@ -220,5 +210,5 @@ export default function TAS(gameState, settings) {
         }
     }
 
-    return {rows, cols, nodeSize, testPath, updateStart};
+    return {testPath, updateStart};
 }

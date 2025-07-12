@@ -1,7 +1,7 @@
 import * as Drawer from "./drawer.js";
 
 // pure pursuit with unconstrained kinodynamics 
-export default function PurePursuit(player, T_INT_SEC) {
+export default function PurePursuit(player) {
 
     function computeDesiredVelocity(path, dt) {
         if (path === null) return {vx: 0, vy: 0};

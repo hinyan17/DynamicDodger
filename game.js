@@ -27,7 +27,7 @@ class Enemy {
 const area = {
     x: 0,
     y: 130,
-    cols: 144,
+    cols: 150,
     rows: 50,
     nodeSize: 13
 };
@@ -42,28 +42,38 @@ const settings = {
     showGrid: true,
     tasOn: false
 };
-settings.T_INT = 1000 / settings.TPS;       // ticks per second, tick interval
+settings.SPT = 1 / settings.TPS;        // seconds per tick
+settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
-const player = new Player(20, 300);
-const enemyInfo = {count: 120, size: 15, speed: 110};   // expand enemyInfo have different enemy type objects
+
+const player = new Player(20, 400);
+const enemyInfo = {count: 120, size: 15, speed: 120};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
 
 const tasbot = TAS(gameState, settings);
-const controller = PurePursuit(player, settings.T_INT);
-let lastUpdate = performance.now();
-Drawer.drawArea(area, settings.showGrid);
+const controller = PurePursuit(player);
+let lastTime = performance.now();
+let accumulator = 0;
 
+Drawer.drawArea(area, settings.showGrid);
 if (!settings.paused) requestAnimationFrame(gameLoop);
 
-function gameLoop(timestamp) {
+function gameLoop(now) {
     if (!settings.paused) requestAnimationFrame(gameLoop);
-    const elapsed = timestamp - lastUpdate;
-    if (elapsed < settings.T_INT) return;
+    let elapsed = now - lastTime;
+    if (elapsed > 1000) elapsed = settings.MSPT;
 
-    lastUpdate = timestamp - (elapsed % settings.T_INT);
-    update(elapsed / 1000);
+    lastTime = now;
+    accumulator += elapsed;
+
+    while (accumulator >= settings.MSPT) {
+        update(settings.SPT);
+        accumulator -= settings.MSPT;
+    }
+
+    Drawer.draw(gameState);
 }
 
 // 1 update is 1 tick, dt is in seconds
@@ -71,39 +81,39 @@ function gameLoop(timestamp) {
 // server handles moving entities: (send player movement packet, then server moves entities)
 function update(dt) {
     if (settings.tasOn) {
-        const path = tasbot.testPath();
-        //tasMovePlayer(path[1]);
-        //tasbot.updateStart();
-        ///*
-        const v = controller.computeDesiredVelocity(path, dt);
-        player.x += v.vx * dt;
-        player.y += v.vy * dt;
-        tasbot.updateStart();
-        //console.log(dt, player.x, player.y, v);
-        //*/
+        tasMovePlayer(dt);
     } else {
         movePlayer(dt);
     }
     moveEnemies(dt);
-    Drawer.draw(gameState);
 }
 
-function tasMovePlayer(next) {
-    if (next === null) return;
-    player.x = next.x;
-    player.y = next.y;
+function tasMovePlayer(dt) {
+    const path = tasbot.testPath();
+    /*
+    // direct teleportation along the path
+    if (path === null || path.length < 2) return;
+    player.x = path[1].x;
+    player.y = path[1].y;
+    tasbot.updateStart();
+    */
+    const v = controller.computeDesiredVelocity(path, dt);
+    player.x += Math.round(v.vx * dt);
+    player.y += Math.round(v.vy * dt);
+    tasbot.updateStart();
+    console.log(dt, player.x, player.y, v);
 }
 
 function movePlayer(dt) {
-    let dx = 0, dy = 0;
-    if (player.keys.ArrowLeft || player.keys.KeyA) dx -= 1;
-    if (player.keys.ArrowRight || player.keys.KeyD) dx += 1;
-    if (player.keys.ArrowUp || player.keys.KeyW) dy -= 1;
-    if (player.keys.ArrowDown || player.keys.KeyS) dy += 1;
-    if (dx == 0 && dy == 0) return;
+    let ux = 0, uy = 0;
+    if (player.keys.ArrowLeft || player.keys.KeyA) ux -= 1;
+    if (player.keys.ArrowRight || player.keys.KeyD) ux += 1;
+    if (player.keys.ArrowUp || player.keys.KeyW) uy -= 1;
+    if (player.keys.ArrowDown || player.keys.KeyS) uy += 1;
+    if (ux == 0 && uy == 0) return;
 
-    player.x += dx * 500 * dt;
-    player.y += dy * 500 * dt;
+    player.x += ux * player.maxVel * dt;
+    player.y += uy * player.maxVel * dt;
     player.x = Math.min(Math.max(area.x + player.radius, player.x), area.x + area.width - player.radius);
     player.y = Math.min(Math.max(area.y + player.radius, player.y), area.y + area.height - player.radius);
 }
@@ -181,7 +191,7 @@ tpsSpan.textContent = settings.TPS;
 const enemySpan = document.getElementById("enemySpan");
 enemySpan.textContent = enemyInfo.count;
 const nodeSpan = document.getElementById("nodeSpan");
-nodeSpan.textContent = `${tasbot.cols * tasbot.rows} (${tasbot.cols}x${tasbot.rows})`;
+nodeSpan.textContent = `${area.cols * area.rows} (${area.cols}x${area.rows})`;
 
 const infoBar = document.getElementById("infoBar");
 infoBar.style.opacity = "1";
@@ -206,7 +216,7 @@ pauseBtn.addEventListener("click", () => {
     settings.paused = !settings.paused;
     pauseBtn.textContent = settings.paused ? ">>" : "||";
     if (!settings.paused) {
-        lastUpdate = performance.now();
+        lastTime = performance.now();
         requestAnimationFrame(gameLoop);
     }
 });
@@ -217,7 +227,8 @@ let repeatTimer = null;
 
 function advanceFrame() {
     if (!settings.paused) return;
-    update(1 / settings.TPS);
+    update(settings.SPT);
+    Drawer.draw(gameState);
 }
 
 frameBtn.addEventListener("mousedown", e => {
@@ -227,7 +238,7 @@ frameBtn.addEventListener("mousedown", e => {
     advanceFrame();
     initialTimer = setTimeout(() => {
         advanceFrame();
-        repeatTimer = setInterval(advanceFrame, 1000 / (settings.TPS / 3));
+        repeatTimer = setInterval(advanceFrame, 3 * settings.MSPT);
     }, 250);
 });
 
