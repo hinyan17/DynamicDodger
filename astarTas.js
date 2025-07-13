@@ -57,16 +57,19 @@ export default function TAS(gameState, settings) {
         }
     }
 
+    // agent's field of view radius squared
+    const horizon2 = (nodeSize * 40)**2;
     let currentRunId = -1;
     let startNode = nodeFromPos(gameState.area.leftSafeX / 2, gameState.area.y + areaHeight / 2);
     let goalNode = nodeFromPos(gameState.area.rightSafeX + (gameState.area.leftSafeX / 2), gameState.area.y + areaHeight / 2);
+    //const comparator = (a, b) => a.f - b.f;
     const comparator = (a, b) => {
         if (a.f !== b.f) {
             return a.f - b.f;
         }
         return b.node.g - a.node.g;
     };
-    //const comparator = (a, b) => a.f - b.f;
+
     const openHeap = new Heap(comparator);
     const blockedSet = new Set();
     // g, f, prev, and closed are now built into the graph with runId
@@ -89,8 +92,6 @@ export default function TAS(gameState, settings) {
         let best = startNode;
         let bestH = heuristic(startNode);
         //let expansions = 0;
-        // agent's field of view radius squared
-        const r2 = (nodeSize * 40)**2;
 
         while (!openHeap.isEmpty()) {
             //expansions++;
@@ -114,7 +115,7 @@ export default function TAS(gameState, settings) {
                 // limit search horizon to some distance R from startNode
                 const dx = nbr.x - startNode.x;
                 const dy = nbr.y - startNode.y;
-                if (dx*dx + dy*dy > r2) continue;
+                if (dx*dx + dy*dy > horizon2) continue;
 
                 const tentativeG = current.g + cost;
                 if (tentativeG < nbr.g) {
@@ -180,33 +181,40 @@ export default function TAS(gameState, settings) {
         return graph[Math.floor(ly / nodeSize)][Math.floor(lx / nodeSize)];
     }
 
-    function circleOverlapsCell(cx, cy, r, ux, uy) {
-        const dx = Math.max(Math.abs(cx - ux) - halfSize, 0);
-        const dy = Math.max(Math.abs(cy - uy) - halfSize, 0);
-        return dx*dx + dy*dy <= r*r;
-    }
-
-    function detectEnemyChanges(blocked) {
-        blocked.clear();
+    function detectEnemyChanges() {
+        blockedSet.clear();
         for (let i = 0; i < gameState.enemies.length; i++) {
-            const radius = gameState.enemies[i].radius + enemyBuffer;
             const x = gameState.enemies[i].x;
             const y = gameState.enemies[i].y;
+            // reject all enemies outside of a* horizon
+            let dx = x - gameState.player.x;
+            let dy = y - gameState.player.y;
+            if (dx*dx + dy*dy > horizon2) continue;
 
-            // use local coordinates when dividing by nodeSize to get bounds
-            const minC = Math.max(0, Math.floor((x - gameState.area.x - radius) / nodeSize));
-            const maxC = Math.min(cols - 1, Math.floor((x - gameState.area.x + radius) / nodeSize));
-            const minR = Math.max(0, Math.floor((y - gameState.area.y - radius) / nodeSize));
-            const maxR = Math.min(rows - 1, Math.floor((y - gameState.area.y + radius) / nodeSize));
+            const rad = gameState.enemies[i].radius + enemyBuffer;
+            const rad2 = rad * rad;
 
+            // calculate bounding top and bottom (rows) for each enemy
+            // localize coordinates when dividing by nodeSize to get indexes
+            const minR = Math.max(0, Math.floor((y - gameState.area.y - rad) / nodeSize));
+            const maxR = Math.min(rows - 1, Math.floor((y - gameState.area.y + rad) / nodeSize));
+
+            // for every bounded row calculate bounding cols to block
             for (let r = minR; r <= maxR; r++) {
+                const rowY = graph[r][0].y;
+                dy = Math.max(0, Math.abs(rowY - y) - halfSize);
+                const span = Math.sqrt(rad2 - dy*dy);
+                const leftX = x - span;
+                const rightX = x + span;
+                const minC = Math.max(0, Math.floor((leftX - gameState.area.x) / nodeSize));
+                const maxC = Math.min(cols - 1, Math.floor((rightX - gameState.area.x) / nodeSize));
                 for (let c = minC; c <= maxC; c++) {
                     const node = graph[r][c];
-                    if (circleOverlapsCell(x, y, radius, node.x, node.y)) {
-                        blocked.add(node);
-                    }
+                    blockedSet.add(node);
+                    Drawer.fillNode(node, halfSize, "lightpink");
                 }
             }
+            Drawer.drawCircle(x, y, rad, "red");
         }
     }
 

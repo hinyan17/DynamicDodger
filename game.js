@@ -26,7 +26,7 @@ class Enemy {
 
 const area = {
     x: 0,
-    y: 130,
+    y: 155,
     cols: 150,
     rows: 50,
     nodeSize: 13
@@ -97,11 +97,12 @@ function tasMovePlayer(dt) {
     player.y = path[1].y;
     tasbot.updateStart();
     */
+    // decide whether to keep or get rid of rounding
     const v = controller.computeDesiredVelocity(path, dt);
     player.x += Math.round(v.vx * dt);
     player.y += Math.round(v.vy * dt);
     tasbot.updateStart();
-    console.log(dt, player.x, player.y, v);
+    //console.log(dt, player.x, player.y, v);
 }
 
 function movePlayer(dt) {

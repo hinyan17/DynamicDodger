@@ -14,13 +14,13 @@ const ctx = canvas.getContext("2d");
 
 export function fillNode(n, halfSize, color) {
     bgctx.fillStyle = color;
-    bgctx.fillRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
+    bgctx.fillRect(n.x - halfSize + 1, n.y - halfSize + 1, halfSize * 2 - 2, halfSize * 2 - 2);
 }
 
 export function fillNodes(nodes, halfSize, color) {
     bgctx.fillStyle = color;
     for (const n of nodes) {
-        bgctx.fillRect(n.x - halfSize, n.y - halfSize, halfSize * 2, halfSize * 2);
+        bgctx.fillRect(n.x - halfSize + 1, n.y - halfSize + 1, halfSize * 2 - 2, halfSize * 2 - 2);
     }
 }
 
