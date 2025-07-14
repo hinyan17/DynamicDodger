@@ -57,12 +57,53 @@ export function drawSquare(x, y, halfSize, color) {
     bgctx.fillRect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
 }
 
-export function drawCircle(x, y, radius, color) {
+export function drawCircle(x, y, radius, thickness, color) {
     bgctx.strokeStyle = color;
-    bgctx.lineWidth = 1;
+    bgctx.lineWidth = thickness;
     bgctx.beginPath();
     bgctx.arc(x, y, radius, 0, 2 * Math.PI);
     bgctx.stroke();
+}
+
+export function drawLine(x, y, x2, y2, thickness, color) {
+    bgctx.strokeStyle = color;
+    bgctx.lineWidth = thickness;
+    bgctx.beginPath();
+    bgctx.moveTo(x, y);
+    bgctx.lineTo(x2, y2);
+    bgctx.stroke();
+}
+
+export function drawVO(vo, player) {
+    const S = 120;
+    const S2 = 60;
+
+    bgctx.lineWidth = 2;
+    /*
+    bgctx.strokeStyle = "orange";
+    bgctx.beginPath();
+    bgctx.moveTo(player.x, player.y);
+    bgctx.lineTo(player.x + vo.leftLeg.x * S2, player.y + vo.leftLeg.y * S2);
+    bgctx.stroke();
+
+    bgctx.beginPath();
+    bgctx.moveTo(player.x, player.y);
+    bgctx.lineTo(player.x + vo.rightLeg.x * S2, player.y + vo.rightLeg.y * S2);
+    bgctx.stroke();
+    */
+    const leftAng = Math.atan2(vo.leftLeg.y,  vo.leftLeg.x);
+    const rightAng = Math.atan2(vo.rightLeg.y, vo.rightLeg.x);
+
+    bgctx.beginPath();
+    bgctx.moveTo(player.x, player.y);
+    bgctx.lineTo(player.x + vo.leftLeg.x * S, player.y + vo.leftLeg.y * S);
+
+    // use the correct direction flag to sweep inside the cone
+    bgctx.arc(player.x, player.y, S, leftAng, rightAng, true);
+    bgctx.lineTo(player.x, player.y);
+
+    bgctx.fillStyle = "rgba(255,0,0,0.2)";
+    bgctx.fill();
 }
 
 export function drawArea(area, showGrid) {
@@ -98,6 +139,7 @@ function drawPlayer(player) {
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius, 0, 2 * Math.PI);
     ctx.fill();
+    //ctx.stroke();
 }
 
 function drawEnemies(enemies) {
@@ -107,7 +149,7 @@ function drawEnemies(enemies) {
         let e = enemies[i];
         ctx.beginPath();
         ctx.arc(e.x, e.y, e.radius, 0, 2 * Math.PI);
-        ctx.fill();
+        //ctx.fill();
         ctx.stroke();
     }
 }

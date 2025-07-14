@@ -152,7 +152,8 @@ export default function TAS(gameState, settings) {
     function testPath() {
         Drawer.drawArea(area, settings.showGrid);
         let path = astar();
-        if (path !== null && path.length > 1) {
+        // like a*, only return null if goalNode has truly been reached
+        if (path !== null) {
             Drawer.fillNode(path[0], halfSize, "red");
             Drawer.fillNode(path[path.length - 1], halfSize, "green");
             Drawer.drawPathLine(path, "blue");

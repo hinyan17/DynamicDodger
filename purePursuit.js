@@ -1,13 +1,17 @@
 import * as Drawer from "./drawer.js";
 
-// pure pursuit with unconstrained kinodynamics 
-export default function PurePursuit(player) {
+// pure pursuit with unconstrained kinodynamics
+export default function PurePursuit(gameState) {
+
+    const {player, enemies} = gameState;
 
     function computeDesiredVelocity(path, dt) {
         if (path === null) return {vx: 0, vy: 0};
+        if (path.length === 1) return computeEscapeVelocity();
 
         const lookahead = Math.round(player.maxVel * dt * 1.5);
-        Drawer.drawCircle(player.x, player.y, lookahead, "orange");
+        const lookahead2 = lookahead * lookahead;
+        //Drawer.drawCircle(player.x, player.y, lookahead, 1, "orange");
 
         for (let i = 0; i < path.length - 1; i++) {
             const A = path[i], B = path[i + 1];
@@ -16,7 +20,7 @@ export default function PurePursuit(player) {
             const dx = bx - ax, dy = by - ay;
             const a = dx*dx + dy*dy;
             const b = 2*(ax*dx + ay*dy);
-            const c = ax*ax + ay*ay - lookahead*lookahead;
+            const c = ax*ax + ay*ay - lookahead2;
             const disc = b*b - 4*a*c;
             if (disc < 0) continue;
             const sqrtDisc = Math.sqrt(disc);
@@ -36,19 +40,24 @@ export default function PurePursuit(player) {
             }
         }
 
-        const goal = path[path.length - 1];
-        const dx = goal.x - player.x, dy = goal.y - player.y;
+        // fallback in case the entire path is inside the lookahead circle (will probably never happen)
+        const pathEnd = path[path.length - 1];
+        const dx = pathEnd.x - player.x;
+        const dy = pathEnd.y - player.y;
         const mag = Math.sqrt(dx*dx + dy*dy) || 1;
-        // if goal is within stepping distance, return the vel needed to arrive there in one frame
+        // if pathEnd is within stepping distance, return the vel needed to arrive there in one frame
         if (mag < player.maxVel * dt) {
             return {vx: dx / dt, vy: dy / dt};
         }
-        // if goal is not within stepping distance, then aim directly at it
-        // fallback for paths that are too short, pass it to velocity obstacles
+        // if pathEnd is not within stepping distance, then aim directly at it
         return {
             vx: (dx / mag) * player.maxVel,
             vy: (dy / mag) * player.maxVel
         };
+    }
+
+    function computeEscapeVelocity() {
+        return undefined;
     }
 
     return {computeDesiredVelocity};

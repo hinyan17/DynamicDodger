@@ -3,6 +3,8 @@ console.log("hello skibidies");
 import * as Drawer from "./drawer.js";
 import TAS from "./astarTas.js";
 import PurePursuit from "./purePursuit.js";
+import VelocityObs from "./velocityObs.js";
+
 class Player {
     constructor(r, vel) {
         this.radius = r;
@@ -47,13 +49,14 @@ settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 
 const player = new Player(20, 400);
-const enemyInfo = {count: 120, size: 15, speed: 120};   // expand enemyInfo for different enemy type objects
+const enemyInfo = {count: 140, size: 15, speed: 120};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
 
 const tasbot = TAS(gameState, settings);
-const controller = PurePursuit(player);
+const tracker = PurePursuit(gameState);
+const voLayer = VelocityObs(gameState, settings);
 let lastTime = performance.now();
 let accumulator = 0;
 
@@ -97,12 +100,25 @@ function tasMovePlayer(dt) {
     player.y = path[1].y;
     tasbot.updateStart();
     */
-    // decide whether to keep or get rid of rounding
-    const v = controller.computeDesiredVelocity(path, dt);
-    player.x += Math.round(v.vx * dt);
-    player.y += Math.round(v.vy * dt);
-    tasbot.updateStart();
-    //console.log(dt, player.x, player.y, v);
+
+    if (path === null) {console.log("reached goal"); return;}
+    
+    const v = tracker.computeDesiredVelocity(path, dt);
+    const safeV = voLayer.findSafeVelocity(v);
+    // temporarily pause game if unable to calculate desired velocity from a* path
+    // allows seeing what kind of escape routes (outside VO cones) there are when bot gets stuck
+    if (v === undefined) {
+        console.log("dead end");
+        settings.paused = true;
+        pauseBtn.textContent = ">>";
+    } else {
+        // this is the normal logic
+        player.x += v.vx * dt;
+        player.y += v.vy * dt;
+        tasbot.updateStart();
+        //Drawer.drawLine(oldx, oldy, player.x, player.y, 1, "blue");
+        //console.log(path, v);
+    }
 }
 
 function movePlayer(dt) {
