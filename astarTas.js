@@ -1,14 +1,15 @@
-import Heap from "./heap-js.es5.js";
+import FastPriorityQueue from "./fpq/FastPriorityQueue.js";
 import * as Drawer from "./drawer.js"
 
 export default function TAS(gameState, settings) {
 
-    const enemyBuffer = gameState.player.radius + 5;
-    const areaWidth = gameState.area.width;
-    const areaHeight = gameState.area.height;
-    const cols = gameState.area.cols;
-    const rows = gameState.area.rows;
-    const nodeSize = gameState.area.nodeSize;
+    const {area, player, enemies} = gameState;
+    const enemyBuffer = player.radius + 5;
+    const areaWidth = area.width;
+    const areaHeight = area.height;
+    const cols = area.cols;
+    const rows = area.rows;
+    const nodeSize = area.nodeSize;
     const halfSize = nodeSize / 2;
     const diagSize = nodeSize * Math.SQRT2;
     const graph = [];
@@ -17,13 +18,13 @@ export default function TAS(gameState, settings) {
     for (let r = 0; r < rows; r++) {
         graph[r] = [];
         for (let c = 0; c < cols; c++) {
-            const x = c * nodeSize + halfSize + gameState.area.x;
-            const y = r * nodeSize + halfSize + gameState.area.y;
+            const x = c * nodeSize + halfSize + area.x;
+            const y = r * nodeSize + halfSize + area.y;
             const inBounds = (
-                x - gameState.player.radius >= gameState.area.x &&
-                x + gameState.player.radius < gameState.area.x + areaWidth &&
-                y - gameState.player.radius >= gameState.area.y &&
-                y + gameState.player.radius < gameState.area.y + areaHeight
+                x - player.radius >= area.x &&
+                x + player.radius < area.x + areaWidth &&
+                y - player.radius >= area.y &&
+                y + player.radius < area.y + areaHeight
             );
             
             graph[r][c] = {
@@ -60,42 +61,41 @@ export default function TAS(gameState, settings) {
     // agent's field of view radius squared
     const horizon2 = (nodeSize * 40)**2;
     let currentRunId = -1;
-    let startNode = nodeFromPos(gameState.area.leftSafeX / 2, gameState.area.y + areaHeight / 2);
-    let goalNode = nodeFromPos(gameState.area.rightSafeX + (gameState.area.leftSafeX / 2), gameState.area.y + areaHeight / 2);
+    let startNode = nodeFromPos(area.leftSafeX / 2, area.y + areaHeight / 2);
+    let goalNode = nodeFromPos(area.rightSafeX + (area.leftSafeX / 2), area.y + areaHeight / 2);
     //const comparator = (a, b) => a.f - b.f;
+    /*
     const comparator = (a, b) => {
         if (a.f !== b.f) {
             return a.f - b.f;
         }
         return b.node.g - a.node.g;
     };
-
-    const openHeap = new Heap(comparator);
+    */
+    const comparator = (a, b) => a.f < b.f || (a.f === b.f && a.node.g > b.node.g);
+    const open = new FastPriorityQueue(comparator);
     const blockedSet = new Set();
     // g, f, prev, and closed are now built into the graph with runId
 
     function astar() {
-        if (startNode === goalNode) {
-            console.log("reached goal");
-            return null;
-        }
+        if (startNode === goalNode) return null;
 
         currentRunId++;
-        openHeap.clear();
-        detectEnemyChanges(blockedSet);
+        open.removeMany();
+        detectEnemyChanges();
 
         lazyInit(startNode);
         startNode.g = 0;
         startNode.f = heuristic(startNode);
-        openHeap.push({node: startNode, f: startNode.f});
+        open.add({node: startNode, f: startNode.f});
 
         let best = startNode;
         let bestH = heuristic(startNode);
         //let expansions = 0;
 
-        while (!openHeap.isEmpty()) {
+        while (!open.isEmpty()) {
             //expansions++;
-            const {node: current, f} = openHeap.pop();
+            const {node: current, f} = open.poll();
             lazyInit(current);
             if (f > current.f) continue;
             if (current.closed) continue;
@@ -122,7 +122,7 @@ export default function TAS(gameState, settings) {
                     nbr.g = tentativeG;
                     nbr.f = tentativeG + heuristic(nbr);
                     nbr.prev = current;
-                    openHeap.push({node: nbr, f: nbr.f});
+                    open.add({node: nbr, f: nbr.f});
                 }
             }
         }
@@ -150,7 +150,7 @@ export default function TAS(gameState, settings) {
     }
 
     function testPath() {
-        Drawer.drawArea(gameState.area, settings.showGrid);
+        Drawer.drawArea(area, settings.showGrid);
         let path = astar();
         if (path !== null && path.length > 1) {
             Drawer.fillNode(path[0], halfSize, "red");
@@ -163,7 +163,7 @@ export default function TAS(gameState, settings) {
     }
 
     function updateStart() {
-        startNode = nodeFromPos(gameState.player.x, gameState.player.y);
+        startNode = nodeFromPos(player.x, player.y);
     }
 
     function heuristic(node) {
@@ -173,8 +173,8 @@ export default function TAS(gameState, settings) {
     }
 
     function nodeFromPos(x, y) {
-        const lx = x - gameState.area.x;
-        const ly = y - gameState.area.y;
+        const lx = x - area.x;
+        const ly = y - area.y;
         if (lx < 0 || ly < 0 || lx >= areaWidth || ly >= areaHeight) {
             throw new Error("Out of bounds");
         }
@@ -183,38 +183,38 @@ export default function TAS(gameState, settings) {
 
     function detectEnemyChanges() {
         blockedSet.clear();
-        for (let i = 0; i < gameState.enemies.length; i++) {
-            const x = gameState.enemies[i].x;
-            const y = gameState.enemies[i].y;
+        for (let i = 0; i < enemies.length; i++) {
+            const x = enemies[i].x;
+            const y = enemies[i].y;
+
             // reject all enemies outside of a* horizon
-            let dx = x - gameState.player.x;
-            let dy = y - gameState.player.y;
+            const dx = x - player.x;
+            const dy = y - player.y;
             if (dx*dx + dy*dy > horizon2) continue;
 
-            const rad = gameState.enemies[i].radius + enemyBuffer;
+            const rad = enemies[i].radius + enemyBuffer;
             const rad2 = rad * rad;
 
             // calculate bounding top and bottom (rows) for each enemy
             // localize coordinates when dividing by nodeSize to get indexes
-            const minR = Math.max(0, Math.floor((y - gameState.area.y - rad) / nodeSize));
-            const maxR = Math.min(rows - 1, Math.floor((y - gameState.area.y + rad) / nodeSize));
+            const minR = Math.max(0, Math.floor((y - area.y - rad) / nodeSize));
+            const maxR = Math.min(rows - 1, Math.floor((y - area.y + rad) / nodeSize));
 
             // for every bounded row calculate bounding cols to block
             for (let r = minR; r <= maxR; r++) {
-                const rowY = graph[r][0].y;
-                dy = Math.max(0, Math.abs(rowY - y) - halfSize);
-                const span = Math.sqrt(rad2 - dy*dy);
+                const distY = Math.max(0, Math.abs(graph[r][0].y - y) - halfSize);
+                const span = Math.sqrt(rad2 - distY*distY);
                 const leftX = x - span;
                 const rightX = x + span;
-                const minC = Math.max(0, Math.floor((leftX - gameState.area.x) / nodeSize));
-                const maxC = Math.min(cols - 1, Math.floor((rightX - gameState.area.x) / nodeSize));
+                const minC = Math.max(0, Math.floor((leftX - area.x) / nodeSize));
+                const maxC = Math.min(cols - 1, Math.floor((rightX - area.x) / nodeSize));
                 for (let c = minC; c <= maxC; c++) {
                     const node = graph[r][c];
                     blockedSet.add(node);
-                    Drawer.fillNode(node, halfSize, "lightpink");
+                    //Drawer.fillNode(node, halfSize, "lightpink");
                 }
             }
-            Drawer.drawCircle(x, y, rad, "red");
+            //Drawer.drawCircle(x, y, rad, 1, "red");
         }
     }
 
