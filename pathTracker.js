@@ -7,7 +7,8 @@ export default function PathTracker(gameState) {
     // implements pure pursuit with unconstrained kinodynamics
     function computeDesiredVelocity(path, dt, goalNode) {
         if (path === null) return {vx: 0, vy: 0};
-        if (path.length === 1) return computeEscapeVelocity(goalNode);
+        //if (path.length === 1) return computeEscapeVelocity(goalNode);
+        if (path.length === 1) return null;
 
         const lookahead = Math.round(player.maxVel * dt * 1.5);
         const lookahead2 = lookahead * lookahead;

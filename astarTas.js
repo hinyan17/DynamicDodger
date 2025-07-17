@@ -153,14 +153,12 @@ export default function TAS(gameState, settings) {
         Drawer.drawArea(area, settings.showGrid);
         let path = astar();
         // like a*, only return null if goalNode has truly been reached
-        if (path !== null) {
-            Drawer.fillNode(path[0], halfSize, "red");
-            Drawer.fillNode(path[path.length - 1], halfSize, "green");
-            Drawer.drawPathLine(path, "blue");
-            //startNode = path[1];
-            return path;
-        }
-        return null;
+        if (path === null) return null;
+        Drawer.fillNode(path[0], halfSize, "red");
+        Drawer.fillNode(path[path.length - 1], halfSize, "green");
+        Drawer.drawPathLine(path, "blue");
+        //startNode = path[1];
+        return path;
     }
 
     function updateStart() {

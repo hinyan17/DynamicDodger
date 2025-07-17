@@ -41,15 +41,15 @@ area.rightSafeX = area.x + area.width - (area.nodeSize * 8);
 const settings = {
     TPS: 30,
     paused: false,
-    showGrid: true,
+    showGrid: false,
     tasOn: false
 };
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 
-const player = new Player(20, 400);
-const enemyInfo = {count: 140, size: 15, speed: 120};   // expand enemyInfo for different enemy type objects
+const player = new Player(20, 450);
+const enemyInfo = {count: 150, size: 15, speed: 150};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
@@ -104,21 +104,20 @@ function tasMovePlayer(dt) {
     if (path === null) {console.log("reached goal"); return;}
     
     let v = tracker.computeDesiredVelocity(path, dt, tasbot.goalNode);
-    v = voLayer.findSafeVelocity(v);
-    if (v === null) {console.log("error"); return;}
+    v = voLayer.findClosestSafeVelocity(v);
     // temporarily pause game if unable to calculate desired velocity from a* path
     // allows seeing what kind of escape routes (outside VO cones) there are when bot gets stuck
-    if (v === undefined) {
-        console.log("dead end");
-        settings.paused = true;
-        pauseBtn.textContent = ">>";
+    if (v === null) {
+        console.log("error");
+        //settings.paused = true;
+        //pauseBtn.textContent = ">>";
     } else {
         // this is the normal logic
         player.x += v.vx * dt;
         player.y += v.vy * dt;
+        player.x = Math.min(Math.max(area.x + player.radius, player.x), area.x + area.width - player.radius);
+        player.y = Math.min(Math.max(area.y + player.radius, player.y), area.y + area.height - player.radius);
         tasbot.updateStart();
-        //Drawer.drawLine(oldx, oldy, player.x, player.y, 1, "blue");
-        //console.log(path, v);
     }
 }
 

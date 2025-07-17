@@ -4,13 +4,76 @@ export default function VelocityObs(gameState, settings) {
 
     const {player, enemies} = gameState;
     const tau = settings.SPT * 4;
-    const margin = 2;
+    const margin = 2.5;
 
-    function findSafeVelocity(prefVel) {
+    function findEscapeVelocity() {
+        const vos = buildAllVOS();
+        if (vos === null) return null;
+
+        const TWOPI = 2 * Math.PI;
+        const intervals = [];
+        for (let i = 0; i < vos.length; i++) {
+            const vo = vos[i];
+            let bound1 = (Math.atan2(vo.leftLeg.y, vo.leftLeg.x) + TWOPI) % TWOPI;
+            let bound2 = (Math.atan2(vo.rightLeg.y, vo.rightLeg.x) + TWOPI) % TWOPI;
+            const diff = (bound1 - bound2 + TWOPI) % TWOPI;
+            if (diff > Math.PI) {
+                [bound1, bound2] = [bound2, bound1];
+            }
+            if (bound2 <= bound1) {
+                intervals.push([bound2, bound1]);
+            } else {
+                intervals.push([bound2, TWOPI], [0, bound1]);
+            }
+        }
+
+        if (intervals.length === 0) return null;
+
+        // sort and merge angles
+        intervals.sort((u, v) => u[0] - v[0]);
+        const merged = [intervals[0].slice()];
+        for (let i = 1; i < intervals.length; i++) {
+            const [start, end] = intervals[i];
+            const last = merged[merged.length - 1];
+            if (start <= last[1]) {
+                last[1] = Math.max(last[1], end);
+            } else {
+                merged.push([start, end]);
+            }
+        }
+
+        // find biggest gap
+        let bestGap = -Infinity;
+        let bestStart = 0;
+        for (let i = 0; i < merged.length; i++) {
+            const end = merged[i][1];
+            const nextStart = (i === merged.length - 1) ? merged[0][0] + TWOPI : merged[i+1][0];
+            const gap = nextStart - end;
+            if (gap > bestGap) {
+                bestGap = gap;
+                bestStart = end;
+            }
+        }
+
+        // union of VO cones fully covered, nowhere to go
+        if (bestGap <= 0) return null;
+
+        const midpoint = (bestStart + bestGap / 2) % TWOPI;
+        const mdptVector = {
+            vx: Math.cos(midpoint) * player.maxVel,
+            vy: Math.sin(midpoint) * player.maxVel
+        };
+        Drawer.drawLine(player.x, player.y, player.x + mdptVector.vx, player.y + mdptVector.vy, 1, "indigo");
+        return mdptVector;
+    }
+
+    function findClosestSafeVelocity(prefVel) {
+        if (prefVel === null) return findEscapeVelocity();
         Drawer.drawLine(player.x, player.y, player.x + prefVel.vx, player.y + prefVel.vy, 1, "coral");
         const vos = buildAllVOS();
         if (vos === null) return null;
 
+        // if prefVel is safe, just return it
         let safe = true;
         for (let i = 0; i < vos.length; i++) {
             if (insideVO(vos[i], prefVel)) {
@@ -20,9 +83,9 @@ export default function VelocityObs(gameState, settings) {
         }
         if (safe) return prefVel;
 
+        // if not, then find a safe velocity closest in angle to prefVel, if one exists
         const speed = Math.sqrt(prefVel.vx*prefVel.vx + prefVel.vy*prefVel.vy);
         const prefAngle = Math.atan2(prefVel.vy, prefVel.vx);
-
         const candidates = [];
         for (let i = 0; i < vos.length; i++) {
             const vo = vos[i];
@@ -94,7 +157,7 @@ export default function VelocityObs(gameState, settings) {
     }
 
     function computeVO(enemy, relX, relY, dist, radiusSum) {
-        // the filter worked on pure radii sum, no safety margin. now we add the margin so that VO plans around those.
+        // the filter works on pure radii sum, no safety margin. now we add the margin so that VO plans around those.
         // if the agent is close enough to the obstacle that adding the margin would look like they already collided,
         // then we fall back to without the margin, which is guaranteed to not have collided. this all guarantees that
         // alpha = Math.asin(radiusSum / dist) is not undefined.
@@ -132,8 +195,6 @@ export default function VelocityObs(gameState, settings) {
         // angle test (infinite cone)
         const crossRight = vo.rightLeg.x * dvy - vo.rightLeg.y * dvx;
         const crossLeft = vo.leftLeg.x * dvy - vo.leftLeg.y * dvx;
-
-        // if both hold, v sits inside the infinite cone
         return crossRight >= 0 && crossLeft <= 0;
 
         //if (!(crossRight >= 0 && crossLeft <= 0)) return false;
@@ -143,6 +204,6 @@ export default function VelocityObs(gameState, settings) {
         //return (dvx*dvx + dvy*dvy) <= relSpeed*relSpeed;
     }
 
-    return {findSafeVelocity};
+    return {findClosestSafeVelocity};
 
 }
