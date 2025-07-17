@@ -1,17 +1,17 @@
 import * as Drawer from "./drawer.js";
 
-// pure pursuit with unconstrained kinodynamics
-export default function PurePursuit(gameState) {
+export default function PathTracker(gameState) {
 
     const {player, enemies} = gameState;
 
-    function computeDesiredVelocity(path, dt) {
+    // implements pure pursuit with unconstrained kinodynamics
+    function computeDesiredVelocity(path, dt, goalNode) {
         if (path === null) return {vx: 0, vy: 0};
-        if (path.length === 1) return computeEscapeVelocity();
+        if (path.length === 1) return computeEscapeVelocity(goalNode);
 
         const lookahead = Math.round(player.maxVel * dt * 1.5);
         const lookahead2 = lookahead * lookahead;
-        //Drawer.drawCircle(player.x, player.y, lookahead, 1, "orange");
+        Drawer.drawCircle(player.x, player.y, lookahead, 1, "orange");
 
         for (let i = 0; i < path.length - 1; i++) {
             const A = path[i], B = path[i + 1];
@@ -30,12 +30,12 @@ export default function PurePursuit(gameState) {
             const sols = [t1, t2].filter(t => t >= 0 && t <= 1);
             if (sols.length > 0) {
                 const latest = Math.max(...sols);
-                const dispX = A.x + latest*(B.x - A.x) - player.x;
-                const dispY = A.y + latest*(B.y - A.y) - player.y;
-                const mag = Math.sqrt(dispX*dispX + dispY*dispY) || 1;
+                const distX = A.x + latest*(B.x - A.x) - player.x;
+                const distY = A.y + latest*(B.y - A.y) - player.y;
+                const dist = Math.sqrt(distX*distX + distY*distY) || 1;
                 return {
-                    vx: (dispX / mag) * player.maxVel,
-                    vy: (dispY / mag) * player.maxVel
+                    vx: (distX / dist) * player.maxVel,
+                    vy: (distY / dist) * player.maxVel
                 };
             }
         }
@@ -44,20 +44,29 @@ export default function PurePursuit(gameState) {
         const pathEnd = path[path.length - 1];
         const dx = pathEnd.x - player.x;
         const dy = pathEnd.y - player.y;
-        const mag = Math.sqrt(dx*dx + dy*dy) || 1;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
         // if pathEnd is within stepping distance, return the vel needed to arrive there in one frame
-        if (mag < player.maxVel * dt) {
+        if (dist < player.maxVel * dt) {
             return {vx: dx / dt, vy: dy / dt};
         }
         // if pathEnd is not within stepping distance, then aim directly at it
         return {
-            vx: (dx / mag) * player.maxVel,
-            vy: (dy / mag) * player.maxVel
+            vx: (dx / dist) * player.maxVel,
+            vy: (dy / dist) * player.maxVel
         };
     }
 
-    function computeEscapeVelocity() {
-        return undefined;
+    // fallback when the path contains only the start node, meaning that the global planner is stuck
+    // change this to be safer: opposite of average enemy bearing
+    function computeEscapeVelocity(goalNode) {
+        console.log("computing escape velocity");
+        const dx = goalNode.x - player.x;
+        const dy = goalNode.y - player.y;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+        return {
+            vx: (dx / dist) * player.maxVel,
+            vy: (dy / dist) * player.maxVel
+        }
     }
 
     return {computeDesiredVelocity};

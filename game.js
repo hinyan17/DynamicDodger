@@ -2,7 +2,7 @@ console.log("hello skibidies");
 
 import * as Drawer from "./drawer.js";
 import TAS from "./astarTas.js";
-import PurePursuit from "./purePursuit.js";
+import PathTracker from "./pathTracker.js";
 import VelocityObs from "./velocityObs.js";
 
 class Player {
@@ -55,7 +55,7 @@ const gameState = {area, player, enemies};
 //window.gameState = gameState;
 
 const tasbot = TAS(gameState, settings);
-const tracker = PurePursuit(gameState);
+const tracker = PathTracker(gameState);
 const voLayer = VelocityObs(gameState, settings);
 let lastTime = performance.now();
 let accumulator = 0;
@@ -103,8 +103,9 @@ function tasMovePlayer(dt) {
 
     if (path === null) {console.log("reached goal"); return;}
     
-    const v = tracker.computeDesiredVelocity(path, dt);
-    const safeV = voLayer.findSafeVelocity(v);
+    let v = tracker.computeDesiredVelocity(path, dt, tasbot.goalNode);
+    v = voLayer.findSafeVelocity(v);
+    if (v === null) {console.log("error"); return;}
     // temporarily pause game if unable to calculate desired velocity from a* path
     // allows seeing what kind of escape routes (outside VO cones) there are when bot gets stuck
     if (v === undefined) {

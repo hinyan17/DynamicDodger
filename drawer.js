@@ -74,35 +74,43 @@ export function drawLine(x, y, x2, y2, thickness, color) {
     bgctx.stroke();
 }
 
-export function drawVO(vo, player) {
+export function drawVO(vo, px, py) {
     const S = 120;
-    const S2 = 60;
 
     bgctx.lineWidth = 2;
-    /*
-    bgctx.strokeStyle = "orange";
-    bgctx.beginPath();
-    bgctx.moveTo(player.x, player.y);
-    bgctx.lineTo(player.x + vo.leftLeg.x * S2, player.y + vo.leftLeg.y * S2);
-    bgctx.stroke();
-
-    bgctx.beginPath();
-    bgctx.moveTo(player.x, player.y);
-    bgctx.lineTo(player.x + vo.rightLeg.x * S2, player.y + vo.rightLeg.y * S2);
-    bgctx.stroke();
-    */
     const leftAng = Math.atan2(vo.leftLeg.y,  vo.leftLeg.x);
     const rightAng = Math.atan2(vo.rightLeg.y, vo.rightLeg.x);
 
     bgctx.beginPath();
-    bgctx.moveTo(player.x, player.y);
-    bgctx.lineTo(player.x + vo.leftLeg.x * S, player.y + vo.leftLeg.y * S);
+    bgctx.moveTo(px, py);
+    bgctx.lineTo(px + vo.leftLeg.x * S, py + vo.leftLeg.y * S);
 
     // use the correct direction flag to sweep inside the cone
-    bgctx.arc(player.x, player.y, S, leftAng, rightAng, true);
-    bgctx.lineTo(player.x, player.y);
+    bgctx.arc(px, py, S, leftAng, rightAng, true);
+    bgctx.lineTo(px, py);
 
     bgctx.fillStyle = "rgba(255,0,0,0.2)";
+    bgctx.fill();
+}
+
+export function drawVO2(vo, px, py) {
+    const scale = 1;
+    const ax = px + vo.apex.x * scale;
+    const ay = py + vo.apex.y * scale;
+
+    const leftAng = Math.atan2(vo.leftLeg.y,  vo.leftLeg.x);
+    const rightAng = Math.atan2(vo.rightLeg.y, vo.rightLeg.x);
+    const r = 100 * scale;
+
+    // fill the wedge
+    bgctx.fillStyle = "rgba(255,0,0,0.2)";
+    bgctx.beginPath();
+    bgctx.moveTo(ax, ay);
+    // line along left leg
+    bgctx.lineTo(ax + Math.cos(leftAng) * r, ay + Math.sin(leftAng) * r);
+    // arc from left → right sweeping inside the cone
+    bgctx.arc(ax, ay, r, leftAng, rightAng, true);
+    bgctx.lineTo(ax, ay);
     bgctx.fill();
 }
 
@@ -135,15 +143,17 @@ function drawGrid(area) {
 }
 
 function drawPlayer(player) {
-    ctx.fillStyle = "#1E90FF";
+    //ctx.fillStyle = "#1E90FF";
+    ctx.strokeStyle = "#1E90FF";
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius, 0, 2 * Math.PI);
-    ctx.fill();
-    //ctx.stroke();
+    //ctx.fill();
+    ctx.stroke();
 }
 
 function drawEnemies(enemies) {
-    ctx.fillStyle = "black";
+    //ctx.fillStyle = "black";
+    ctx.strokeStyle = "black";
 
     for (let i = 0; i < enemies.length; i++) {
         let e = enemies[i];

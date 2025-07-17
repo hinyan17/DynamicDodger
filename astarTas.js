@@ -219,5 +219,5 @@ export default function TAS(gameState, settings) {
         }
     }
 
-    return {testPath, updateStart};
+    return {testPath, updateStart, goalNode};
 }
