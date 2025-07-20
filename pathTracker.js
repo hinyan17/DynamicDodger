@@ -5,10 +5,10 @@ export default function PathTracker(gameState) {
     const {player, enemies} = gameState;
 
     // implements pure pursuit with unconstrained kinodynamics
-    function computeDesiredVelocity(path, dt, goalNode) {
-        if (path === null) return {vx: 0, vy: 0};
-        //if (path.length === 1) return computeEscapeVelocity(goalNode);
+    function computeDesiredHeading(path, dt) {
+        if (path === null) return null;
         if (path.length === 1) return null;
+        //if (path.length === 1) return computeEscapeVelocity(goalNode);
 
         const lookahead = Math.round(player.maxVel * dt * 1.5);
         const lookahead2 = lookahead * lookahead;
@@ -33,32 +33,22 @@ export default function PathTracker(gameState) {
                 const latest = Math.max(...sols);
                 const distX = A.x + latest*(B.x - A.x) - player.x;
                 const distY = A.y + latest*(B.y - A.y) - player.y;
-                const dist = Math.sqrt(distX*distX + distY*distY) || 1;
-                return {
-                    vx: (distX / dist) * player.maxVel,
-                    vy: (distY / dist) * player.maxVel
-                };
+                const mag = Math.sqrt(distX*distX + distY*distY);
+                if (mag === 0) return null;
+                return {ux: distX / mag, uy: distY / mag};
             }
         }
 
-        // fallback in case the entire path is inside the lookahead circle (will probably never happen)
+        // fallback in case the entire path is inside the lookahead circle (will rarely happen)
         const pathEnd = path[path.length - 1];
         const dx = pathEnd.x - player.x;
         const dy = pathEnd.y - player.y;
-        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
-        // if pathEnd is within stepping distance, return the vel needed to arrive there in one frame
-        if (dist < player.maxVel * dt) {
-            return {vx: dx / dt, vy: dy / dt};
-        }
-        // if pathEnd is not within stepping distance, then aim directly at it
-        return {
-            vx: (dx / dist) * player.maxVel,
-            vy: (dy / dist) * player.maxVel
-        };
+        const mag = Math.sqrt(dx*dx + dy*dy);
+        if (mag === 0) return null;
+        return {ux: dx / mag, uy: dy / mag};
     }
 
-    // fallback when the path contains only the start node, meaning that the global planner is stuck
-    // change this to be safer: opposite of average enemy bearing
+    // fallback when the global planner is stuck, aim directly at goalNode
     function computeEscapeVelocity(goalNode) {
         console.log("computing escape velocity");
         const dx = goalNode.x - player.x;
@@ -70,5 +60,5 @@ export default function PathTracker(gameState) {
         }
     }
 
-    return {computeDesiredVelocity};
+    return {computeDesiredHeading};
 }

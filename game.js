@@ -42,14 +42,16 @@ const settings = {
     TPS: 30,
     paused: false,
     showGrid: false,
-    tasOn: false
+    tasOn: false,
+    drawPath: true,
+    drawVO: true
 };
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 
-const player = new Player(20, 450);
-const enemyInfo = {count: 150, size: 15, speed: 150};   // expand enemyInfo for different enemy type objects
+const player = new Player(20, 850);
+const enemyInfo = {count: 180, size: 15, speed: 160};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
@@ -102,9 +104,11 @@ function tasMovePlayer(dt) {
     */
 
     if (path === null) {console.log("reached goal"); return;}
-    
-    let v = tracker.computeDesiredVelocity(path, dt, tasbot.goalNode);
-    v = voLayer.findClosestSafeVelocity(v);
+
+    const heading = tracker.computeDesiredHeading(path, dt);
+    console.log("heading", heading);
+    const v = voLayer.findSafeVelocity(heading);
+    console.log("safevel", v);
     // temporarily pause game if unable to calculate desired velocity from a* path
     // allows seeing what kind of escape routes (outside VO cones) there are when bot gets stuck
     if (v === null) {

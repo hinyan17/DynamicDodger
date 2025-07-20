@@ -154,9 +154,12 @@ export default function TAS(gameState, settings) {
         let path = astar();
         // like a*, only return null if goalNode has truly been reached
         if (path === null) return null;
-        Drawer.fillNode(path[0], halfSize, "red");
-        Drawer.fillNode(path[path.length - 1], halfSize, "green");
-        Drawer.drawPathLine(path, "blue");
+        if (settings.drawPath) {
+            Drawer.fillNode(path[0], halfSize, "red");
+            Drawer.fillNode(path[path.length - 1], halfSize, "green");
+            Drawer.drawPathLine(path, "blue");
+        }
+
         //startNode = path[1];
         return path;
     }
