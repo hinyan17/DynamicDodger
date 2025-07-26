@@ -1,4 +1,4 @@
-import FastPriorityQueue from "./fpq/FastPriorityQueue.js";
+import FastPriorityQueue from "../fpq/FastPriorityQueue.js";
 import * as Drawer from "./drawer.js"
 
 export default function TAS(gameState, settings) {

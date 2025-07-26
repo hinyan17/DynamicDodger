@@ -2,26 +2,123 @@ import * as Drawer from "./drawer.js";
 
 export default function VelocityObs(gameState, settings) {
 
-    const {player, enemies} = gameState;
+    const {area, player, enemies} = gameState;
     const tau = settings.SPT * 4;
-    const margin = 2.5;
+    const margin = 2;
+    const speedDivisions = 40;
+
+    // left right bottom top wall half planes of admissible velocities
+    const wallHPS = [
+        {nx: -1, ny: 0, rhs: () => (player.x - area.x - player.radius) / settings.SPT},
+        {nx: 1, ny: 0, rhs: () => (area.x + area.width - player.x - player.radius) / settings.SPT},
+        {nx: 0, ny: -1, rhs: () => (player.y - area.y - player.radius) / settings.SPT},
+        {nx: 0, ny: 1, rhs: () => (area.y + area.height - player.y - player.radius) / settings.SPT}
+    ];
+
+    // test if the candidate velocity is in the region covered by the wall half planes
+    function satisfyHPS(cand) {
+        for (const hp of wallHPS) {
+            if (hp.nx * cand.x + hp.ny * cand.y > hp.rhs()) return false;
+        }
+        return true;
+    }
+
+    /*
+    TODO:
+    make the wall check work in all cases
+    maybe switch from perfect truncated cone check to approximate linear check
+    pick a better escape velocity than just static angular analysis
+    maybe switch away from discrete sampling later...
+    */
 
     // main function. takes in preferred heading and returns the best velocity vector
     function findSafeVelocity(heading) {
-        const merged = buildAngularUnion();
-        if (merged === null) return null;
+        const vos = buildAllVos();
+        if (vos === null) {console.log("vos is null"); return null;}
 
-        // separation of concerns: find best angle first, then best magnitude of speed
-        const safeAng = heading === null ? findEscapeAngle(merged) : findSafeAngle(merged, heading);
-        if (safeAng === null) return null;
-        return findMaxSafeSpeed(safeAng);
+        let color = "coral";
+        if (heading === null) {
+            const escape = findEscapeHeading(vos);
+            if (escape === null) {console.log("no escape found"); return null;}
+            heading = escape;
+            color = "orchid";
+        }
+
+        const vPref = {x: heading.ux * player.maxVel, y: heading.uy * player.maxVel};
+        if (!satisfyHPS(vPref)) color = "limegreen";
+        Drawer.drawLine(player.x, player.y, player.x + vPref.x, player.y + vPref.y, 1, color);
+        //return vPref;
+
+        // build the set of VOs that contain vPref
+        const prefInsideVOSet = [];
+        for (let i = 0; i < vos.length; i++) {
+            if (insideVO(vos[i], vPref)) {
+                prefInsideVOSet.push(vos[i]);
+            }
+        }
+        // if preferred velocity is safe, just return it
+        if (prefInsideVOSet.length === 0) return vPref;
+
+        // otherwise, find a safe velocity closest in angle to vPref (if one exists)
+        // we iterate for every leg of every VO containing vPref,
+        // for speeds starting at maxVel and subtracting increments of 1 / speedDivisions, until a safe v is found
+        const candidates = [];
+        for (let speedInc = speedDivisions; speedInc > 0; speedInc--) {
+            for (let i = 0; i < prefInsideVOSet.length; i++) {
+                const vo = prefInsideVOSet[i];
+                const speed = player.maxVel * speedInc / speedDivisions;
+                for (const leg of [vo.leftLeg, vo.rightLeg]) {
+                    const dot = vo.apex.x * leg.x + vo.apex.y * leg.y;
+                    const disc = dot*dot - (vo.apex.x*vo.apex.x + vo.apex.y*vo.apex.y - speed*speed);
+                    if (disc < 0) continue;
+                    const s = -dot + Math.sqrt(disc);
+                    const cand = {x: vo.apex.x + leg.x * s, y: vo.apex.y + leg.y * s};
+
+                    if (!satisfyHPS(cand)) continue;
+                    let feasible = true;
+                    for (const vo2 of vos) {
+                        if (vo2 === vo) continue;
+                        if (insideVO(vo2, cand)) {
+                            feasible = false;
+                            break;
+                        }
+                    }
+                    if (feasible) candidates.push(cand);
+                }
+            }
+            if (candidates.length > 0) break;
+        }
+
+        const aPref = Math.atan2(vPref.y, vPref.x);
+        let best = null;
+        let bestDiff = Infinity;
+        for (const cand of candidates) {
+            const a = Math.atan2(cand.y, cand.x);
+            const d = angularDifference(a, aPref);
+            if (d < bestDiff) {
+                best = cand;
+                bestDiff = d;
+            }
+        }
+
+        if (best === null) {
+            const zero = {x: 0, y: 0};
+            const zeroSafe = !vos.some(vo => insideVO(vo, zero));
+            if (zeroSafe) {
+                best = zero;
+                console.log("chose zero velocity");
+            }
+        }
+
+        if (best === null) {console.log("found no safe velocity"); return null;}
+        Drawer.drawLine(player.x, player.y, player.x + best.x, player.y + best.y, 1, "aqua");
+        return best;
     }
 
-    // returns an array of angular intervals forming the union of VO cones at the ORIGIN
-    function buildAngularUnion() {
-        const vos = buildAllVOS();
+    // this function is still scuffed. pick better method after getting base velocity selection
+    // with finite-time velocity obstacles working
+    function findEscapeHeading(vos) {
         if (vos === null || vos.length === 0) return null;
-
         const TWOPI = 2 * Math.PI;
         const intervals = [];
         for (let i = 0; i < vos.length; i++) {
@@ -33,41 +130,24 @@ export default function VelocityObs(gameState, settings) {
                 [bound1, bound2] = [bound2, bound1];
             }
             if (bound2 <= bound1) {
-                intervals.push({start: bound2, end: bound1, vo});
+                intervals.push([bound2, bound1]);
             } else {
-                intervals.push({start: bound2, end: TWOPI, vo}, {start: 0, end: bound1, vo});
+                intervals.push([bound2, TWOPI], [0, bound1]);
             }
         }
 
         // sort and merge angles
-        intervals.sort((a, b) => a.start - b.start);
-        const merged = [{start: intervals[0].start, end: intervals[0].end, vos: [intervals[0].vo]}];
+        intervals.sort((u, v) => u[0] - v[0]);
+        const merged = [intervals[0].slice()];
         for (let i = 1; i < intervals.length; i++) {
-            const {start, end, vo} = intervals[i];
+            const [start, end] = intervals[i];
             const last = merged[merged.length - 1];
-            if (start <= last.end) {
-                last.end = Math.max(last.end, end);
-                last.vos.push(vo);
+            if (start <= last[1]) {
+                last[1] = Math.max(last[1], end);
             } else {
-                merged.push({start, end, vo});
+                merged.push([start, end]);
             }
         }
-        return merged;
-    }
-
-    function findSafeAngle(merged, heading) {
-        if (merged === null) return null;
-        if (heading === null) // do some thing
-
-        // sortedMerged: a sorted list of intervals (and their vos) to consider
-        // for escape angle, rank by larger gap size
-        // for closest safe angle, rank by smaller angular difference to heading
-        // iterate over candidate intervals. if all velocities are blocked for a candidate, move to next
-    }
-
-    // returns the unit vector of the escape angle
-    function findEscapeAngle(merged) {
-        if (merged === null) return null;
 
         // find biggest gap
         let bestGap = -Infinity;
@@ -83,57 +163,76 @@ export default function VelocityObs(gameState, settings) {
         }
 
         // union of VO cones fully covered, nowhere to go
-        if (bestGap === -Infinity) return null;
-
+        if (bestGap <= 0) return null;
         const midpoint = (bestStart + bestGap / 2) % TWOPI;
-        const mdptVec = {ux: Math.cos(midpoint), uy: Math.sin(midpoint)};
-        if (settings.drawVO) {
-            Drawer.drawLine(player.x, player.y, player.x + mdptVec.ux * player.maxVel, player.y + mdptVec.uy * player.maxVel, 1, "indigo");
-        }
-        return mdptVec;
+        return {ux: Math.cos(midpoint), uy: Math.sin(midpoint)};
     }
 
-    // returns the unit vector of the closest safe angle
-    function findClosestSafeAngle(merged, heading) {
-        if (merged === null) return null;
-        if (heading === null) heading = findEscapeAngle(merged);
-        if (settings.drawVO) {
-            Drawer.drawLine(player.x, player.y, player.x + heading.ux * player.maxSpeed, player.y + heading.uy * player.maxSpeed, 1, "coral");
-        }
+    function buildAllVos() {
+        const vos = [];
+        for (let i = 0; i < enemies.length; i++) {
+            const e = enemies[i];
+            const relX = e.x - player.x;
+            const relY = e.y - player.y;
+            const dist = Math.sqrt(relX*relX + relY*relY);
+            const radSum = e.radius + player.radius;
 
-        let newHeading = heading;
-        const angle = Math.atan2(heading.uy, heading.ux);
-        // linear pass over all unsafe regions. if the angle is in one, then the closest safe angle must be one of its legs
-        for (const [start, end] of merged) {
-            if (start <= angle && angle < end) {
-                const dToStart = angularDifference(start, angle);
-                const dToEnd = angularDifference(angle, end);
-                const closest = dToStart < dToEnd ? start : end;
-                newHeading = {ux: Math.cos(closest), uy: Math.sin(closest)};
-                break;
-            }
-        }
+            // agent already collided with an obstacle, what are we even doing here?
+            if (dist <= radSum) return null;
 
-        if (settings.drawVO && newHeading !== heading) {
-            Drawer.drawLine(player.x, player.y, player.x + newHeading.ux * player.maxSpeed, player.y + newHeading.uy * player.maxSpeed, 1, "aqua");
+            // filter obstacles that can't collide within time tau even at max opposing velocity
+            const velStep = (player.maxVel + Math.sqrt(e.vx*e.vx + e.vy*e.vy)) * tau;
+            if (dist - radSum > velStep) continue;
+
+            if (settings.drawVo) Drawer.drawCircle(e.x, e.y, e.radius / 4, 2, "blue");
+            vos.push(computeVo(e, relX, relY, dist, radSum));
         }
-        return newHeading;
+        return vos;
     }
 
-    function findMaxSafeSpeed(apex, theta) {
-        let low = 0;
-        let high = player.maxVel;
-        for (let i = 0; i < 6; i++) {
-            const mid = (low + high) / 2;
-            const vx = apex.vx + Math.cos(theta) * mid;
-            const vy = apex.vy + Math.sin(theta) * mid;
-            if (vos.some(vo => strictlyInsideVO(vo, {vx, vy}))) {
-                high = mid;
-            } else {
-                low = mid;
-            }
-        }
-        return low;
+    function computeVo(enemy, relX, relY, dist, radSum) {
+        // the filter works on pure radii sum, no safety margin. now we add the margin so that VO plans around those.
+        // if the agent is close enough to the obstacle that adding the margin would look like they already collided,
+        // then we fall back to without the margin, which is guaranteed to not have collided. this all guarantees that
+        // alpha = Math.asin(radiusSum / dist) is not undefined.
+        let newRadSum = radSum + margin;
+        if (dist <= newRadSum) newRadSum = radSum;
+
+        const alpha = Math.asin(newRadSum / dist);
+        const angleToEnemy = Math.atan2(relY, relX);
+        const leftAng = angleToEnemy + alpha;
+        const rightAng = angleToEnemy - alpha;
+    
+        const leftLeg = {x: Math.cos(leftAng), y: Math.sin(leftAng)};
+        const rightLeg = {x: Math.cos(rightAng), y: Math.sin(rightAng)};
+        const apex = {x: enemy.vx, y: enemy.vy};
+        return {apex, leftLeg, rightLeg, relX, relY, rad: newRadSum};
+    }
+
+    function insideVO(vo, vPref) {
+        // compute relative velocity vector (treat obstacle as static)
+        const dvx = vPref.x - vo.apex.x;
+        const dvy = vPref.y - vo.apex.y;
+
+        // angle test (infinite cone)
+        const crossRight = vo.rightLeg.x * dvy - vo.rightLeg.y * dvx;
+        const crossLeft = vo.leftLeg.x * dvy - vo.leftLeg.y * dvx;
+        const inCone = crossRight >= 0 && crossLeft <= 0;
+        if (!inCone) return false;
+
+        // finite horizon time test
+        const a = dvx*dvx + dvy*dvy;
+        if (a === 0) return false;
+        const b = -2*(vo.relX*dvx + vo.relY*dvy);
+        const c = (vo.relX*vo.relX + vo.relY*vo.relY) - vo.rad*vo.rad;
+        const disc = b*b - 4*a*c;
+        if (disc < 0) return false;
+        const sqrtDisc = Math.sqrt(disc);
+
+        const t1 = (-b - sqrtDisc) / (2*a);
+        const t2 = (-b + sqrtDisc) / (2*a);
+        const tEntry = (t1 >= 0) ? t1 : t2;
+        return tEntry >= 0 && tEntry <= tau;
     }
 
     function angularDifference(a, b) {
@@ -141,58 +240,12 @@ export default function VelocityObs(gameState, settings) {
         return d > Math.PI ? (2*Math.PI) - d : d;
     }
 
-    function buildAllVOS() {
-        const vos = [];
-        for (let i = 0; i < enemies.length; i++) {
-            const e = enemies[i];
-            const relX = e.x - player.x;
-            const relY = e.y - player.y;
-            const dist = Math.sqrt(relX*relX + relY*relY);
-            const radiusSum = e.radius + player.radius;
+    return {findSafeVelocity};
 
-            // agent already collided with an obstacle, what are we even doing here?
-            if (dist <= radiusSum) return null;
+}
 
-            // filter obstacles that can't collide within time tau even at max opposing velocity
-            const velStep = (player.maxVel + Math.sqrt(e.vx*e.vx + e.vy*e.vy)) * tau;
-            if (dist - radiusSum > velStep) continue;
 
-            if (settings.drawVO) Drawer.drawCircle(e.x, e.y, e.radius / 4, 2, "blue");
-            vos.push(computeVO(e, relX, relY, dist, radiusSum));
-        }
-        return vos;
-    }
-
-    function computeVO(enemy, relX, relY, dist, radiusSum) {
-        // the filter works on pure radii sum, no safety margin. now we add the margin so that VO plans around those.
-        // if the agent is close enough to the obstacle that adding the margin would look like they already collided,
-        // then we fall back to without the margin, which is guaranteed to not have collided. this all guarantees that
-        // alpha = Math.asin(radiusSum / dist) is not undefined.
-        let newRadSum = radiusSum + margin;
-        if (dist <= newRadSum) {
-            newRadSum = radiusSum;
-        }
-
-        const alpha = Math.asin(newRadSum / dist);
-        //const alpha = Math.asin(Math.min(radiusSum + margin, dist) / dist);       //works with small margin only
-        const angleToEnemy = Math.atan2(relY, relX);
-
-        const leftAng = angleToEnemy + alpha;
-        const rightAng = angleToEnemy - alpha;
-
-        const apex = {x: enemy.vx, y: enemy.vy};
-        const leftLeg = {x: Math.cos(leftAng), y: Math.sin(leftAng)};
-        const rightLeg = {x: Math.cos(rightAng), y: Math.sin(rightAng)};
-        return {apex, leftLeg, rightLeg};
-    }
-
-    function legBlockedByVO(vo, cx, cy) {
-        // pure angle tests: is (cx,cy) in the closed cone of vo?
-        const crossRight = vo.rightLeg.x * cy - vo.rightLeg.y * cx;
-        const crossLeft = vo.leftLeg.x * cy - vo.leftLeg.y * cx;
-        return crossRight >= 0 && crossLeft <= 0;
-    }
-
+    /*
     // velocities on cone bounds are considered safe
     function strictlyInsideVO(vo, prefVel) {
         const dvx = prefVel.vx - vo.apex.x;
@@ -202,23 +255,10 @@ export default function VelocityObs(gameState, settings) {
         return crossRight > 0 && crossLeft < 0;
     }
 
-    function insideVO(vo, prefVel) {
-        // compute relative velocity vector from vo apex to prefVel
-        const dvx = prefVel.vx - vo.apex.x;
-        const dvy = prefVel.vy - vo.apex.y;
-
-        // angle test (infinite cone)
-        const crossRight = vo.rightLeg.x * dvy - vo.rightLeg.y * dvx;
-        const crossLeft = vo.leftLeg.x * dvy - vo.leftLeg.y * dvx;
+    function legBlockedByVO(vo, cx, cy) {
+        // pure angle tests: is (cx,cy) in the closed cone of vo?
+        const crossRight = vo.rightLeg.x * cy - vo.rightLeg.y * cx;
+        const crossLeft = vo.leftLeg.x * cy - vo.leftLeg.y * cx;
         return crossRight >= 0 && crossLeft <= 0;
-
-        //if (!(crossRight >= 0 && crossLeft <= 0)) return false;
-        // magnitude test (finite horizon), throw out too small vels that can't collide
-        // only speeds outside this disk can collide within tau
-        //const relSpeed = vo.radiusSum / tau;
-        //return (dvx*dvx + dvy*dvy) <= relSpeed*relSpeed;
     }
-
-    return {findSafeVelocity};
-
-}
+    */

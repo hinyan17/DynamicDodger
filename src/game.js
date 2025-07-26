@@ -44,14 +44,14 @@ const settings = {
     showGrid: false,
     tasOn: false,
     drawPath: true,
-    drawVO: true
+    drawVo: true
 };
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 
-const player = new Player(20, 850);
-const enemyInfo = {count: 180, size: 15, speed: 160};   // expand enemyInfo for different enemy type objects
+const player = new Player(20, 400);
+const enemyInfo = {count: 200, size: 15, speed: 200};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
@@ -77,7 +77,6 @@ function gameLoop(now) {
         update(settings.SPT);
         accumulator -= settings.MSPT;
     }
-
     Drawer.draw(gameState);
 }
 
@@ -94,7 +93,6 @@ function update(dt) {
 }
 
 function tasMovePlayer(dt) {
-    const path = tasbot.testPath();
     /*
     // direct teleportation along the path
     if (path === null || path.length < 2) return;
@@ -103,22 +101,21 @@ function tasMovePlayer(dt) {
     tasbot.updateStart();
     */
 
-    if (path === null) {console.log("reached goal"); return;}
-
-    const heading = tracker.computeDesiredHeading(path, dt);
-    console.log("heading", heading);
+    //const path = tasbot.testPath();
+    //if (path === null) {console.log("reached goal"); return;}
+    //const heading = tracker.computeDesiredHeading(path, dt);
+    Drawer.drawArea(area, settings.showGrid);
+    const heading = tracker.noPathHeading(tasbot.goalNode);
     const v = voLayer.findSafeVelocity(heading);
-    console.log("safevel", v);
-    // temporarily pause game if unable to calculate desired velocity from a* path
-    // allows seeing what kind of escape routes (outside VO cones) there are when bot gets stuck
+
     if (v === null) {
-        console.log("error");
+        //console.log("error");
         //settings.paused = true;
         //pauseBtn.textContent = ">>";
     } else {
         // this is the normal logic
-        player.x += v.vx * dt;
-        player.y += v.vy * dt;
+        player.x += v.x * dt;
+        player.y += v.y * dt;
         player.x = Math.min(Math.max(area.x + player.radius, player.x), area.x + area.width - player.radius);
         player.y = Math.min(Math.max(area.y + player.radius, player.y), area.y + area.height - player.radius);
         tasbot.updateStart();
@@ -196,6 +193,8 @@ window.addEventListener("keydown", e => {
     if (e.code in player.keys) {
         player.keys[e.code] = true;
         e.preventDefault();
+    } else if (e.code === "Space") {
+        startSlowAdvance(e);
     }
 });
 
@@ -203,6 +202,8 @@ window.addEventListener("keyup", e => {
     if (e.code in player.keys) {
         player.keys[e.code] = false;
         e.preventDefault();
+    } else if (e.code === "Space") {
+        stopSlowAdvance(e);
     }
 });
 
@@ -252,20 +253,25 @@ function advanceFrame() {
     Drawer.draw(gameState);
 }
 
-frameBtn.addEventListener("mousedown", e => {
+function startSlowAdvance(e) {
     e.preventDefault();
-    if (initialTimer !== null || repeatTimer !== null) return;
+    if (initialTimer !== null) return;
 
     advanceFrame();
     initialTimer = setTimeout(() => {
         advanceFrame();
         repeatTimer = setInterval(advanceFrame, 3 * settings.MSPT);
     }, 250);
-});
+}
 
-frameBtn.addEventListener("mouseup", () => {
+function stopSlowAdvance(e) {
+    e.preventDefault();
+    if (initialTimer === null) return;
     clearTimeout(initialTimer);
     clearInterval(repeatTimer);
     initialTimer = null;
     repeatTimer = null;
-});
+}
+
+frameBtn.addEventListener("mousedown", startSlowAdvance);
+frameBtn.addEventListener("mouseup", stopSlowAdvance);

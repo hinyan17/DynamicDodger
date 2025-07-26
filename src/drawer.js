@@ -74,7 +74,7 @@ export function drawLine(x, y, x2, y2, thickness, color) {
     bgctx.stroke();
 }
 
-export function drawVO(vo, px, py) {
+export function drawVo(vo, px, py) {
     const S = 120;
 
     bgctx.lineWidth = 2;
@@ -90,27 +90,6 @@ export function drawVO(vo, px, py) {
     bgctx.lineTo(px, py);
 
     bgctx.fillStyle = "rgba(255,0,0,0.2)";
-    bgctx.fill();
-}
-
-export function drawVO2(vo, px, py) {
-    const scale = 1;
-    const ax = px + vo.apex.x * scale;
-    const ay = py + vo.apex.y * scale;
-
-    const leftAng = Math.atan2(vo.leftLeg.y,  vo.leftLeg.x);
-    const rightAng = Math.atan2(vo.rightLeg.y, vo.rightLeg.x);
-    const r = 100 * scale;
-
-    // fill the wedge
-    bgctx.fillStyle = "rgba(255,0,0,0.2)";
-    bgctx.beginPath();
-    bgctx.moveTo(ax, ay);
-    // line along left leg
-    bgctx.lineTo(ax + Math.cos(leftAng) * r, ay + Math.sin(leftAng) * r);
-    // arc from left → right sweeping inside the cone
-    bgctx.arc(ax, ay, r, leftAng, rightAng, true);
-    bgctx.lineTo(ax, ay);
     bgctx.fill();
 }
 

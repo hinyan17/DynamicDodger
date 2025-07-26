@@ -2,13 +2,14 @@ import * as Drawer from "./drawer.js";
 
 export default function PathTracker(gameState) {
 
-    const {player, enemies} = gameState;
+    const {player} = gameState;
 
-    // implements pure pursuit with unconstrained kinodynamics
+    // implements pure pursuit with unconstrained kinematics
     function computeDesiredHeading(path, dt) {
         if (path === null) return null;
         if (path.length === 1) return null;
-        //if (path.length === 1) return computeEscapeVelocity(goalNode);
+        //if (path.length <= 4) return null;
+        //if (path.length === 1) return escapeHeading(goalNode);
 
         const lookahead = Math.round(player.maxVel * dt * 1.5);
         const lookahead2 = lookahead * lookahead;
@@ -29,14 +30,14 @@ export default function PathTracker(gameState) {
             const t1 = (-b - sqrtDisc) / (2*a);
             const t2 = (-b + sqrtDisc) / (2*a);
             const sols = [t1, t2].filter(t => t >= 0 && t <= 1);
-            if (sols.length > 0) {
-                const latest = Math.max(...sols);
-                const distX = A.x + latest*(B.x - A.x) - player.x;
-                const distY = A.y + latest*(B.y - A.y) - player.y;
-                const mag = Math.sqrt(distX*distX + distY*distY);
-                if (mag === 0) return null;
-                return {ux: distX / mag, uy: distY / mag};
-            }
+            if (sols.length === 0) continue;
+
+            const latest = Math.max(...sols);
+            const distX = A.x + latest*(B.x - A.x) - player.x;
+            const distY = A.y + latest*(B.y - A.y) - player.y;
+            const mag = Math.sqrt(distX*distX + distY*distY);
+            if (mag === 0) return null;
+            return {ux: distX / mag, uy: distY / mag};
         }
 
         // fallback in case the entire path is inside the lookahead circle (will rarely happen)
@@ -48,17 +49,14 @@ export default function PathTracker(gameState) {
         return {ux: dx / mag, uy: dy / mag};
     }
 
-    // fallback when the global planner is stuck, aim directly at goalNode
-    function computeEscapeVelocity(goalNode) {
-        console.log("computing escape velocity");
+    // aim directly at goalNode, used as a test of VO without a global path
+    function noPathHeading(goalNode) {
         const dx = goalNode.x - player.x;
         const dy = goalNode.y - player.y;
-        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
-        return {
-            vx: (dx / dist) * player.maxVel,
-            vy: (dy / dist) * player.maxVel
-        }
+        const mag = Math.sqrt(dx*dx + dy*dy);
+        if (mag === 0) return null;
+        return {ux: dx / mag, uy: dy / mag}
     }
 
-    return {computeDesiredHeading};
+    return {computeDesiredHeading, noPathHeading};
 }
