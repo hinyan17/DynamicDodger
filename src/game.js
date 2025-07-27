@@ -51,7 +51,7 @@ settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 
 const player = new Player(20, 400);
-const enemyInfo = {count: 200, size: 15, speed: 200};   // expand enemyInfo for different enemy type objects
+const enemyInfo = {count: 150, size: 15, speed: 200};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
@@ -101,11 +101,11 @@ function tasMovePlayer(dt) {
     tasbot.updateStart();
     */
 
-    //const path = tasbot.testPath();
-    //if (path === null) {console.log("reached goal"); return;}
-    //const heading = tracker.computeDesiredHeading(path, dt);
-    Drawer.drawArea(area, settings.showGrid);
-    const heading = tracker.noPathHeading(tasbot.goalNode);
+    const path = tasbot.testPath();
+    if (path === null) {console.log("reached goal"); return;}
+    const heading = tracker.computeDesiredHeading(path, dt);
+    //Drawer.drawArea(area, settings.showGrid);
+    //const heading = tracker.noPathHeading(tasbot.goalNode);
     const v = voLayer.findSafeVelocity(heading);
 
     if (v === null) {

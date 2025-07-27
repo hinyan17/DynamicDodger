@@ -3,16 +3,17 @@ import * as Drawer from "./drawer.js";
 export default function VelocityObs(gameState, settings) {
 
     const {area, player, enemies} = gameState;
-    const tau = settings.SPT * 4;
+    const globalTau = settings.SPT * 4;
     const margin = 2;
     const speedDivisions = 40;
+    const TWOPI = 2 * Math.PI;
 
-    // left right bottom top wall half planes of admissible velocities
+    // bottom top left right wall half planes of admissible velocities
     const wallHPS = [
-        {nx: -1, ny: 0, rhs: () => (player.x - area.x - player.radius) / settings.SPT},
-        {nx: 1, ny: 0, rhs: () => (area.x + area.width - player.x - player.radius) / settings.SPT},
         {nx: 0, ny: -1, rhs: () => (player.y - area.y - player.radius) / settings.SPT},
-        {nx: 0, ny: 1, rhs: () => (area.y + area.height - player.y - player.radius) / settings.SPT}
+        {nx: 0, ny: 1, rhs: () => (area.y + area.height - player.y - player.radius) / settings.SPT},
+        {nx: -1, ny: 0, rhs: () => (player.x - area.x - player.radius) / settings.SPT},
+        {nx: 1, ny: 0, rhs: () => (area.x + area.width - player.x - player.radius) / settings.SPT}
     ];
 
     // test if the candidate velocity is in the region covered by the wall half planes
@@ -25,47 +26,52 @@ export default function VelocityObs(gameState, settings) {
 
     /*
     TODO:
-    make the wall check work in all cases
     maybe switch from perfect truncated cone check to approximate linear check
     pick a better escape velocity than just static angular analysis
+    integrate better with a*, might require an any angle global planner
     maybe switch away from discrete sampling later...
     */
 
     // main function. takes in preferred heading and returns the best velocity vector
     function findSafeVelocity(heading) {
-        const vos = buildAllVos();
-        if (vos === null) {console.log("vos is null"); return null;}
+        const vos = buildAllVos(globalTau);
+        if (vos === null) {console.log("null vos"); return null;}
 
         let color = "coral";
         if (heading === null) {
-            const escape = findEscapeHeading(vos);
-            if (escape === null) {console.log("no escape found"); return null;}
-            heading = escape;
-            color = "orchid";
+            heading = findEscapeHeading(vos);
+            if (heading === null) {console.log("no escape found"); return null;}
+            else color = "orchid";
         }
 
         const vPref = {x: heading.ux * player.maxVel, y: heading.uy * player.maxVel};
-        if (!satisfyHPS(vPref)) color = "limegreen";
+        const vPrefInBounds = satisfyHPS(vPref);
+        if (!vPrefInBounds) color = "limegreen";
         Drawer.drawLine(player.x, player.y, player.x + vPref.x, player.y + vPref.y, 1, color);
-        //return vPref;
 
         // build the set of VOs that contain vPref
-        const prefInsideVOSet = [];
+        const VOsWithPref = [];
         for (let i = 0; i < vos.length; i++) {
-            if (insideVO(vos[i], vPref)) {
-                prefInsideVOSet.push(vos[i]);
+            if (insideVO(vos[i], vPref, globalTau)) {
+                VOsWithPref.push(vos[i]);
             }
         }
         // if preferred velocity is safe, just return it
-        if (prefInsideVOSet.length === 0) return vPref;
-
+        if (VOsWithPref.length === 0) {
+            if (vPrefInBounds) return vPref;
+            console.log("no vos but bad (outside hps) velocity"); return null;
+        }
         // otherwise, find a safe velocity closest in angle to vPref (if one exists)
+        return discreteSampling(vos, vPref, VOsWithPref, globalTau);
+    }
+
+    function discreteSampling(vos, vPref, VOsWithPref, tau) {
         // we iterate for every leg of every VO containing vPref,
         // for speeds starting at maxVel and subtracting increments of 1 / speedDivisions, until a safe v is found
         const candidates = [];
         for (let speedInc = speedDivisions; speedInc > 0; speedInc--) {
-            for (let i = 0; i < prefInsideVOSet.length; i++) {
-                const vo = prefInsideVOSet[i];
+            for (let i = 0; i < VOsWithPref.length; i++) {
+                const vo = VOsWithPref[i];
                 const speed = player.maxVel * speedInc / speedDivisions;
                 for (const leg of [vo.leftLeg, vo.rightLeg]) {
                     const dot = vo.apex.x * leg.x + vo.apex.y * leg.y;
@@ -78,7 +84,7 @@ export default function VelocityObs(gameState, settings) {
                     let feasible = true;
                     for (const vo2 of vos) {
                         if (vo2 === vo) continue;
-                        if (insideVO(vo2, cand)) {
+                        if (insideVO(vo2, cand, tau)) {
                             feasible = false;
                             break;
                         }
@@ -103,15 +109,24 @@ export default function VelocityObs(gameState, settings) {
 
         if (best === null) {
             const zero = {x: 0, y: 0};
-            const zeroSafe = !vos.some(vo => insideVO(vo, zero));
+            const zeroSafe = !vos.some(vo => insideVO(vo, zero, tau));
             if (zeroSafe) {
                 best = zero;
                 console.log("chose zero velocity");
             }
         }
 
-        if (best === null) {console.log("found no safe velocity"); return null;}
-        Drawer.drawLine(player.x, player.y, player.x + best.x, player.y + best.y, 1, "aqua");
+        //if (best === null) {console.log("found no safe velocity"); return null;}
+        // keep temporary 1 frame lookahead fallback, might help escape traps?
+        if (tau === globalTau) {
+            if (best === null) {
+                const fallback = discreteSampling(vos, vPref, VOsWithPref, settings.SPT * 1);
+                if (fallback === null) {console.log("found no safe velocity"); return null;}
+                Drawer.drawLine(player.x, player.y, player.x + fallback.x, player.y + fallback.y, 1, "gold");
+                return fallback;
+            }
+            Drawer.drawLine(player.x, player.y, player.x + best.x, player.y + best.y, 1, "aqua");
+        }
         return best;
     }
 
@@ -119,7 +134,6 @@ export default function VelocityObs(gameState, settings) {
     // with finite-time velocity obstacles working
     function findEscapeHeading(vos) {
         if (vos === null || vos.length === 0) return null;
-        const TWOPI = 2 * Math.PI;
         const intervals = [];
         for (let i = 0; i < vos.length; i++) {
             const vo = vos[i];
@@ -168,7 +182,7 @@ export default function VelocityObs(gameState, settings) {
         return {ux: Math.cos(midpoint), uy: Math.sin(midpoint)};
     }
 
-    function buildAllVos() {
+    function buildAllVos(tau) {
         const vos = [];
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
@@ -209,7 +223,7 @@ export default function VelocityObs(gameState, settings) {
         return {apex, leftLeg, rightLeg, relX, relY, rad: newRadSum};
     }
 
-    function insideVO(vo, vPref) {
+    function insideVO(vo, vPref, tau) {
         // compute relative velocity vector (treat obstacle as static)
         const dvx = vPref.x - vo.apex.x;
         const dvy = vPref.y - vo.apex.y;
@@ -236,8 +250,8 @@ export default function VelocityObs(gameState, settings) {
     }
 
     function angularDifference(a, b) {
-        const d = Math.abs(a - b) % (2*Math.PI);
-        return d > Math.PI ? (2*Math.PI) - d : d;
+        const d = Math.abs(a - b) % TWOPI;
+        return d > Math.PI ? TWOPI - d : d;
     }
 
     return {findSafeVelocity};
@@ -253,12 +267,5 @@ export default function VelocityObs(gameState, settings) {
         const crossRight = vo.rightLeg.x * dvy - vo.rightLeg.y * dvx;
         const crossLeft = vo.leftLeg.x * dvy - vo.leftLeg.y * dvx;
         return crossRight > 0 && crossLeft < 0;
-    }
-
-    function legBlockedByVO(vo, cx, cy) {
-        // pure angle tests: is (cx,cy) in the closed cone of vo?
-        const crossRight = vo.rightLeg.x * cy - vo.rightLeg.y * cx;
-        const crossLeft = vo.leftLeg.x * cy - vo.leftLeg.y * cx;
-        return crossRight >= 0 && crossLeft <= 0;
     }
     */
