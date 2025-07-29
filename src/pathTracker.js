@@ -5,10 +5,10 @@ export default function PathTracker(gameState) {
     const {player} = gameState;
 
     // implements pure pursuit with unconstrained kinematics
-    function computeDesiredHeading(path, dt) {
+    function computeDesiredHeading(path, dt, goalNode) {
         if (path === null) return null;
         if (path.length === 1) return null;
-        //if (path.length <= 4) return null;
+        //if (path.length <= 4) return noPathHeading(goalNode);
         //if (path.length === 1) return escapeHeading(goalNode);
 
         const lookahead = Math.round(player.maxVel * dt * 1.5);

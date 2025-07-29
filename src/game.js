@@ -43,15 +43,16 @@ const settings = {
     paused: false,
     showGrid: false,
     tasOn: false,
+    drawBlock: false,
     drawPath: true,
-    drawVo: true
+    drawVo: false
 };
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 
 const player = new Player(20, 400);
-const enemyInfo = {count: 150, size: 15, speed: 200};   // expand enemyInfo for different enemy type objects
+const enemyInfo = {count: 200, size: 15, speed: 200};   // expand enemyInfo for different enemy type objects
 const enemies = spawnEnemies(enemyInfo.count, enemyInfo.size, enemyInfo.speed);
 const gameState = {area, player, enemies};
 //window.gameState = gameState;
@@ -85,6 +86,9 @@ function gameLoop(now) {
 // server handles moving entities: (send player movement packet, then server moves entities)
 function update(dt) {
     if (settings.tasOn) {
+        if (settings.drawBlock || settings.drawPath || settings.drawVo) {
+            Drawer.drawArea(area, settings.showGrid);
+        }
         tasMovePlayer(dt);
     } else {
         movePlayer(dt);
@@ -95,18 +99,19 @@ function update(dt) {
 function tasMovePlayer(dt) {
     /*
     // direct teleportation along the path
+    const path = tasbot.testPath();
     if (path === null || path.length < 2) return;
     player.x = path[1].x;
     player.y = path[1].y;
     tasbot.updateStart();
     */
-
+    ///*
     const path = tasbot.testPath();
     if (path === null) {console.log("reached goal"); return;}
-    const heading = tracker.computeDesiredHeading(path, dt);
-    //Drawer.drawArea(area, settings.showGrid);
+    const heading = tracker.computeDesiredHeading(path, dt, tasbot.goalNode);
     //const heading = tracker.noPathHeading(tasbot.goalNode);
     const v = voLayer.findSafeVelocity(heading);
+    //const v = {x: heading.ux * player.maxVel, y: heading.uy * player.maxVel};
 
     if (v === null) {
         //console.log("error");
@@ -120,6 +125,7 @@ function tasMovePlayer(dt) {
         player.y = Math.min(Math.max(area.y + player.radius, player.y), area.y + area.height - player.radius);
         tasbot.updateStart();
     }
+    //*/
 }
 
 function movePlayer(dt) {
