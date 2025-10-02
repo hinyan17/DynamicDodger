@@ -1,6 +1,6 @@
-# 2D Any-Angle Pathfinding in Dynamic Environments
+# Dynamic Dodger
 
-A playground for real-time navigation in a dense, fully dynamic 2D world.  
+A playground for real-time pathfinding in a dense, fully dynamic 2D world.  
 
 ## Features
 
@@ -12,9 +12,8 @@ A playground for real-time navigation in a dense, fully dynamic 2D world.
 - Tunable parameters: speeds, radii, global horizon, local horizon, safety margin, and replan windows (soon).
 
 
-## High Level Game Loop
+## Game Loop
 
-[Game State @ frame t]
 - Build the set of blocked nodes covered by enemies
 - Run horizon-bounded Theta* to get a global path
 - Run pure pursuit on the generated path to get a preferred heading
