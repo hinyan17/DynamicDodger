@@ -1,6 +1,6 @@
 # Dynamic Dodger
 
-A playground for real-time pathfinding in a dense, fully dynamic 2D world.  
+A playground for real-time pathfinding in a configurable, fully dynamic 2D world.  
 
 ## Features
 
@@ -8,8 +8,8 @@ A playground for real-time pathfinding in a dense, fully dynamic 2D world.
 - Any-angle global planner (Theta*) on an 8-connected grid
 - Local planner implements unconstrained pure pursuit with Velocity Obstacles
 - Finite time Velocity Obstacles guarantees local short-term safety
-- Discrete velocity sampling selects a safe velocity given a preferred input heading from pure pursuit
-- Tunable parameters: speeds, radii, global horizon, local horizon, safety margin, and replan windows (soon).
+- Discrete sampling selects a safe velocity given a preferred input heading from pure pursuit
+- Configurable parameters: speeds, radii, global horizon, local horizon, safety margin, and replan windows (soon).
 
 
 ## Game Loop
@@ -25,7 +25,7 @@ A playground for real-time pathfinding in a dense, fully dynamic 2D world.
 - Collision is checked between agent and enemies
 
 
-The global layer provides topological guidance, while the local VO layer guarantees short-term safety. Extra logic keeps the two layers from “fighting” in crowded scenes.
+The global layer provides guidance, while the local layer guarantees short-term safety.
 
 ## Demonstration
-[![Watch the demo](demo_thumbnail.png)](demo.mp4)
+see /demo

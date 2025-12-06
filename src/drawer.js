@@ -94,6 +94,10 @@ export function drawVo(vo, px, py) {
 }
 
 export function drawArea(area, showGrid) {
+    bgctx.fillStyle = "#222";
+    bgctx.fillRect(0, 0, backCanvas.width, area.y);
+    bgctx.fillRect(0, area.y + area.height, backCanvas.width, backCanvas.height - area.height - area.y);
+
     bgctx.fillStyle = "white";
     bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);
 
@@ -125,26 +129,46 @@ function drawPlayer(player) {
     //ctx.fillStyle = "#1E90FF";
     ctx.strokeStyle = "#1E90FF";
     ctx.beginPath();
-    ctx.arc(player.x, player.y, player.radius, 0, 2 * Math.PI);
+    ctx.arc(player.pos.x, player.pos.y, player.radius, 0, 2 * Math.PI);
     //ctx.fill();
     ctx.stroke();
 }
 
 function drawEnemies(enemies) {
-    //ctx.fillStyle = "black";
-    ctx.strokeStyle = "black";
-
-    for (let i = 0; i < enemies.length; i++) {
-        let e = enemies[i];
+    for (const e of enemies) {
+        //ctx.fillStyle = e.color;
+        ctx.strokeStyle = e.color;
         ctx.beginPath();
-        ctx.arc(e.x, e.y, e.radius, 0, 2 * Math.PI);
+        ctx.arc(e.pos.x, e.pos.y, e.radius, 0, 2 * Math.PI);
         //ctx.fill();
         ctx.stroke();
     }
 }
 
+function drawAuras(enemies) {
+    const groupEnemies = new Map();
+    for (const e of enemies) {
+        if (!groupEnemies.has(e.type)) {
+            groupEnemies.set(e.type, [e]);
+        } else {
+            groupEnemies.get(e.type).push(e);
+        }
+    }
+
+    for (const group of groupEnemies.values()) {
+        ctx.fillStyle = group[0].auraColor;
+        ctx.beginPath();
+        for (const e of group) {
+            ctx.moveTo(e.pos.x + e.auraRadius, e.pos.y);
+            ctx.arc(e.pos.x, e.pos.y, e.auraRadius, 0, 2 * Math.PI);
+        }
+        ctx.fill();
+    }
+}
+
 export function draw(gameState) {
-    ctx.clearRect(gameState.area.x, gameState.area.y, gameState.area.width, gameState.area.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawPlayer(gameState.player);
     drawEnemies(gameState.enemies);
+    drawAuras(gameState.enemies);
 }

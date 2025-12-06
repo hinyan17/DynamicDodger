@@ -1,4 +1,4 @@
-import * as Drawer from "./drawer.js";
+import * as Drawer from "../drawer.js";
 
 export default function PathTracker(gameState) {
 
