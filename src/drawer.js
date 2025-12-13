@@ -1,17 +1,106 @@
-// background canvas for drawing area, grid lines, nodes, paths
-const backCanvas = document.getElementById("backCanvas");
-backCanvas.width = window.innerWidth;
-backCanvas.height = window.innerHeight;
-const bgctx = backCanvas.getContext("2d");
-bgctx.fillStyle = "#222";
-bgctx.fillRect(0, 0, backCanvas.width, backCanvas.height);
+export default class Drawer {
+    constructor() {
+        // background canvas for drawing area, grid lines, nodes, paths
+        this.backCanvas = document.getElementById("backCanvas");
+        this.backCanvas.width = window.innerWidth;
+        this.backCanvas.height = window.innerHeight;
+        this.bgctx = this.backCanvas.getContext("2d");
 
-// normal game canvas for drawing player, enemies
-export const canvas = document.getElementById("gameCanvas");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-const ctx = canvas.getContext("2d");
+        // normal game canvas for drawing player, enemies
+        this.canvas = document.getElementById("gameCanvas");
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.ctx = this.canvas.getContext("2d");
+    }
 
+    drawArea(area, showGrid) {
+        this.bgctx.fillStyle = "white";
+        this.bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);
+
+        this.bgctx.fillStyle = "lightgray";
+        this.bgctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
+        this.bgctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
+        if (showGrid) this.drawGrid(area);
+    }
+
+    drawGrid(area) {
+        this.bgctx.strokeStyle = "#222";
+        this.bgctx.lineWidth = 0.3;
+        
+        for (let x = area.x + area.nodeSize; x < area.x + area.width; x += area.nodeSize) {
+            this.bgctx.beginPath();
+            this.bgctx.moveTo(x, area.y);
+            this.bgctx.lineTo(x, area.y + area.height);
+            this.bgctx.stroke();
+        }
+        for (let y = area.y + area.nodeSize; y < area.y + area.height; y += area.nodeSize) {
+            this.bgctx.beginPath();
+            this.bgctx.moveTo(area.x, y);
+            this.bgctx.lineTo(area.x + area.width, y);
+            this.bgctx.stroke();
+        }
+    }
+
+    drawPlayer(player) {
+        //this.ctx.fillStyle = "#1E90FF";
+        this.ctx.strokeStyle = "#1E90FF";
+        this.ctx.beginPath();
+        this.ctx.arc(player.pos.x, player.pos.y, player.radius, 0, 2 * Math.PI);
+        //this.ctx.fill();
+        this.ctx.stroke();
+    }
+
+    drawEnemies(enemies) {
+        for (const e of enemies) {
+            //ctx.fillStyle = e.color;
+            this.ctx.strokeStyle = e.color;
+            this.ctx.beginPath();
+            this.ctx.arc(e.pos.x, e.pos.y, e.radius, 0, 2 * Math.PI);
+            //ctx.fill();
+            this.ctx.stroke();
+        }
+    }
+
+    drawAuras(enemies) {
+        const auraGroups = new Map();
+        for (const e of enemies) {
+            if (!e.aura) continue;
+            if (!auraGroups.has(e.type)) {
+                auraGroups.set(e.type, [e]);
+            } else {
+                auraGroups.get(e.type).push(e);
+            }
+        }
+
+        for (const group of auraGroups.values()) {
+            this.ctx.fillStyle = group[0].auraColor;
+            this.ctx.beginPath();
+            for (const e of group) {
+                this.ctx.moveTo(e.pos.x + e.auraRadius, e.pos.y);
+                this.ctx.arc(e.pos.x, e.pos.y, e.auraRadius, 0, 2 * Math.PI);
+            }
+            this.ctx.fill();
+        }
+    }
+
+    draw(gameState, camera) {
+        this.bgctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.bgctx.fillStyle = "#222";
+        this.bgctx.fillRect(0, 0, this.backCanvas.width, this.backCanvas.height);
+
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.bgctx.translate(-camera.x, -camera.y);
+        this.ctx.translate(-camera.x, -camera.y);
+
+        this.drawArea(gameState.area, gameState.settings.showGrid);
+        this.drawPlayer(gameState.player);
+        this.drawEnemies(gameState.enemies);
+        this.drawAuras(gameState.enemies);
+    }
+}
+/*
 export function fillNode(n, halfSize, color) {
     bgctx.fillStyle = color;
     bgctx.fillRect(n.x - halfSize + 1, n.y - halfSize + 1, halfSize * 2 - 2, halfSize * 2 - 2);
@@ -92,83 +181,5 @@ export function drawVo(vo, px, py) {
     bgctx.fillStyle = "rgba(255,0,0,0.2)";
     bgctx.fill();
 }
+*/
 
-export function drawArea(area, showGrid) {
-    bgctx.fillStyle = "#222";
-    bgctx.fillRect(0, 0, backCanvas.width, area.y);
-    bgctx.fillRect(0, area.y + area.height, backCanvas.width, backCanvas.height - area.height - area.y);
-
-    bgctx.fillStyle = "white";
-    bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);
-
-    bgctx.fillStyle = "lightgray";
-    bgctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
-    bgctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
-    if (showGrid) drawGrid(area);
-}
-
-function drawGrid(area) {
-    bgctx.strokeStyle = "#222";
-    bgctx.lineWidth = 0.3;
-    
-    for (let x = area.x + area.nodeSize; x < area.x + area.width; x += area.nodeSize) {
-        bgctx.beginPath();
-        bgctx.moveTo(x, area.y);
-        bgctx.lineTo(x, area.y + area.height);
-        bgctx.stroke();
-    }
-    for (let y = area.y + area.nodeSize; y < area.y + area.height; y += area.nodeSize) {
-        bgctx.beginPath();
-        bgctx.moveTo(area.x, y);
-        bgctx.lineTo(area.x + area.width, y);
-        bgctx.stroke();
-    }
-}
-
-function drawPlayer(player) {
-    //ctx.fillStyle = "#1E90FF";
-    ctx.strokeStyle = "#1E90FF";
-    ctx.beginPath();
-    ctx.arc(player.pos.x, player.pos.y, player.radius, 0, 2 * Math.PI);
-    //ctx.fill();
-    ctx.stroke();
-}
-
-function drawEnemies(enemies) {
-    for (const e of enemies) {
-        //ctx.fillStyle = e.color;
-        ctx.strokeStyle = e.color;
-        ctx.beginPath();
-        ctx.arc(e.pos.x, e.pos.y, e.radius, 0, 2 * Math.PI);
-        //ctx.fill();
-        ctx.stroke();
-    }
-}
-
-function drawAuras(enemies) {
-    const groupEnemies = new Map();
-    for (const e of enemies) {
-        if (!groupEnemies.has(e.type)) {
-            groupEnemies.set(e.type, [e]);
-        } else {
-            groupEnemies.get(e.type).push(e);
-        }
-    }
-
-    for (const group of groupEnemies.values()) {
-        ctx.fillStyle = group[0].auraColor;
-        ctx.beginPath();
-        for (const e of group) {
-            ctx.moveTo(e.pos.x + e.auraRadius, e.pos.y);
-            ctx.arc(e.pos.x, e.pos.y, e.auraRadius, 0, 2 * Math.PI);
-        }
-        ctx.fill();
-    }
-}
-
-export function draw(gameState) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawPlayer(gameState.player);
-    drawEnemies(gameState.enemies);
-    drawAuras(gameState.enemies);
-}

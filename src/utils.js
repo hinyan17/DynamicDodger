@@ -14,18 +14,29 @@ export class Vector {
         return Math.sqrt(dx*dx + dy*dy);
     }
 
-    norm() {
+    normalize() {
         const mag = this.magnitude();
-        return new Vector(this.x / mag, this.y / mag);
+        this.x /= mag;
+        this.y /= mag;
     }
 
     clamp(max) {
         const mag = this.magnitude();
         if (mag > max) {
             const scale = max / mag;
-            return new Vector(this.x * scale, this.y * scale);
+            this.x *= scale;
+            this.y *= scale;
         }
-        return this;
+    }
+
+    scale(n) {
+        this.x *= n;
+        this.y *= n; 
+    }
+
+    translate(dx, dy) {
+        this.x += dx;
+        this.y += dy;
     }
 }
 

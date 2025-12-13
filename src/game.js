@@ -2,7 +2,7 @@ console.log("hello skibidies");
 
 import UIManager from "./uiManager.js";
 import InputManager from "./inputManager.js";
-import * as Drawer from "./drawer.js";
+import Drawer from "./drawer.js";
 import * as Entities from "./entities.js";
 import { EntityType } from "./entities.js";
 import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
@@ -14,14 +14,14 @@ const settings = {
     tasOn: false,
     drawBlock: false,
     drawPath: true,
-    drawVo: false
+    drawVo: false,
+    followPlayer: true
 };
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
 // x, y, cols, rows, nodeSize, safeTileWidth
 const area = createArea(0, 155, 150, 50, 13, 8);
-
 const playerSpawn = new Vector((area.leftSafeX - area.x) / 2, (area.height / 2) + area.y);
 const player = new Entities.Player(playerSpawn, 20, 510);
 const enemyInfo = [
@@ -54,17 +54,19 @@ const enemyInfo = [
     }
 ];
 const enemies = spawnEnemies(enemyInfo);
-const gameState = {area, player, enemies};
-//window.gameState = gameState;
+const gameState = {settings, area, player, enemies};
 
-// initialize ui and input managers
+const camera = new Vector(0, 0);
+
+// initialize ui, input, drawer
 const hookFunctions = {togglePause, startSlowAdvance, stopSlowAdvance};
-const uiManager = new UIManager(settings, gameState, hookFunctions);
+const uiManager = new UIManager(gameState, hookFunctions);
 const inputManager = new InputManager();
+const drawer = new Drawer();
 
 let lastTime = performance.now();
 let accumulator = 0;
-Drawer.drawArea(area, settings.showGrid);
+drawer.drawArea(area, settings.showGrid);
 if (!settings.paused) requestAnimationFrame(gameLoop);
 
 function gameLoop(now) {
@@ -79,14 +81,22 @@ function gameLoop(now) {
         update(settings.SPT);
         accumulator -= settings.MSPT;
     }
-    Drawer.draw(gameState);
+
+    if (settings.followPlayer) {
+        camera.x = player.pos.x - window.innerWidth / 2;
+        camera.y = player.pos.y - window.innerHeight / 2;
+    }
+    drawer.draw(gameState, camera);
 }
 
 // 1 update is 1 tick, dt is in seconds
 function update(dt) {
+    // capture state of input to be used for this update
     const input = inputManager.getInput();
+
     // reset temp effects first
     player.resetEffects();
+
     // move enemies
     for (const e of enemies) {
         e.move(dt, area);
@@ -100,18 +110,22 @@ function update(dt) {
 
     // move player
     if (settings.tasOn) {
-        if (settings.drawBlock || settings.drawPath || settings.drawVo) {
-            Drawer.drawArea(area, settings.showGrid);
-        }
-        //tasMovePlayer(dt);
+        tasMovePlayer(dt);
     } else {
         player.move(dt, input, area);
     }
 
     // check for player hit
     if (player.checkDead(enemies)) {
-        downPlayer();
+        //downPlayer();
     }
+}
+
+function tasMovePlayer(dt) {
+    if (settings.drawBlock || settings.drawPath || settings.drawVo) {
+        drawer.drawArea(area, settings.showGrid);
+    }
+    // tas things
 }
 
 function downPlayer() {
@@ -157,7 +171,7 @@ function createEnemy(config, index) {
 function advanceFrame() {
     if (!settings.paused) return;
     update(settings.SPT);
-    Drawer.draw(gameState);
+    drawer.draw(gameState);
 }
 
 function togglePause() {

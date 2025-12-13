@@ -22,11 +22,12 @@ export class Player {
         this.slowEffect = undefined;
     }
 
-    move(dt, inputVec, area) {
-        const adj = inputVec.clamp(maxSpeed);
+    move(dt, rawInput, area) {
+        const inputVel = this.processInput(rawInput);
+        if (inputVel === null) return;
 
-        let dx = adj.x * dt;
-        let dy = adj.y * dt;
+        let dx = inputVel.x * dt;
+        let dy = inputVel.y * dt;
         if (this.slowEffect) {
             dx *= this.slowEffect;
             dy *= this.slowEffect;
@@ -34,6 +35,24 @@ export class Player {
         this.pos.x += dx;
         this.pos.y += dy;
         this.checkAreaCollision(area);
+    }
+
+    processInput(rawInput) {
+        const keyVec = new Vector(0, 0);
+        if (rawInput.keys.left) keyVec.x -= 1;
+        if (rawInput.keys.right) keyVec.x += 1;
+        if (rawInput.keys.up) keyVec.y -= 1;
+        if (rawInput.keys.down) keyVec.y += 1;
+
+        if (keyVec.x !== 0 || keyVec.y !== 0) {
+            keyVec.scale(this.maxSpeed);
+            return keyVec;
+        }
+
+        if (rawInput.mouseActive) {
+            return rawInput.mousePos;
+        }
+        return null;
     }
 
     checkAreaCollision(area) {

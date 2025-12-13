@@ -1,10 +1,10 @@
 import * as Drawer from "./drawer.js";
 
 export default class UIManager {
-    constructor(settings, gameState, hookFunctions) {
+    constructor(gameState, hookFunctions) {
         // be aware of object desync
-        this.settings = settings;
         this.gameState = gameState;
+        this.settings = gameState.settings;
         this.hookFunctions = hookFunctions;
 
         this.displayInfo();
