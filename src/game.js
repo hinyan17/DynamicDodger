@@ -1,69 +1,32 @@
 console.log("hello skibidies");
 
+import * as Config from "./config.js";
 import UIManager from "./uiManager.js";
 import InputManager from "./inputManager.js";
 import Drawer from "./drawer.js";
 import * as Entities from "./entities.js";
 import { EntityType } from "./entities.js";
 import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
+//import VelocityObs from "./tas/velocityObs.js";
 
-const settings = {
-    TPS: 30,
-    paused: false,
-    showGrid: false,
-    tasOn: false,
-    drawBlock: false,
-    drawPath: true,
-    drawVo: false,
-    followPlayer: true
-};
-settings.SPT = 1 / settings.TPS;        // seconds per tick
-settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
-
-// x, y, cols, rows, nodeSize, safeTileWidth
-const area = createArea(0, 155, 150, 50, 13, 8);
-const playerSpawn = new Vector((area.leftSafeX - area.x) / 2, (area.height / 2) + area.y);
-const player = new Entities.Player(playerSpawn, 20, 510);
-const enemyInfo = [
-    {
-        type: EntityType.NORMAL,
-        count: 1,
-        radius: 20,
-        speed: 40
-    },
-    {
-        type: EntityType.SLOWING,
-        count: 10,
-        radius: 20,
-        speed: 120,
-        auraRadius: 160
-    },
-    {
-        type: EntityType.WALL,
-        count: 10,
-        radius: 30,
-        speed: 120,
-        clockwise: true
-    },
-    {
-        type: EntityType.WALL,
-        count: 1,
-        radius: 30,
-        speed: 120,
-        clockwise: false
-    }
-];
-const enemies = spawnEnemies(enemyInfo);
+// initialize game data
+const settings = Config.settings;
+const area = createArea(Config.areaData);
+const player = createPlayer(Config.playerData);
+const enemies = createEnemies(Config.enemyData);
 const gameState = {settings, area, player, enemies};
-
 const camera = new Vector(0, 0);
 
 // initialize ui, input, drawer
 const hookFunctions = {togglePause, startSlowAdvance, stopSlowAdvance};
-const uiManager = new UIManager(gameState, hookFunctions);
-const inputManager = new InputManager();
+const uinterface = new UIManager(gameState, hookFunctions);
+const inputter = new InputManager(settings.inputDelay);
 const drawer = new Drawer();
 
+// initialize tas things
+const velObs = VelocityObs(gameState, drawer);
+
+// start the game loop
 let lastTime = performance.now();
 let accumulator = 0;
 drawer.drawArea(area, settings.showGrid);
@@ -92,7 +55,8 @@ function gameLoop(now) {
 // 1 update is 1 tick, dt is in seconds
 function update(dt) {
     // capture state of input to be used for this update
-    const input = inputManager.getInput();
+    const raw = inputter.getInput();
+    const intentVec = inputter.processInput(raw);
 
     // reset temp effects first
     player.resetEffects();
@@ -110,9 +74,9 @@ function update(dt) {
 
     // move player
     if (settings.tasOn) {
-        tasMovePlayer(dt);
+        tasMovePlayer(dt, intentVec);
     } else {
-        player.move(dt, input, area);
+        player.move(dt, intentVec, area);
     }
 
     // check for player hit
@@ -121,11 +85,13 @@ function update(dt) {
     }
 }
 
-function tasMovePlayer(dt) {
+function tasMovePlayer(dt, intentVec) {
     if (settings.drawBlock || settings.drawPath || settings.drawVo) {
         drawer.drawArea(area, settings.showGrid);
     }
-    // tas things
+
+    const correctedIntent = velObs.findSafeVelocity(intentVec);
+    player.move(dt, correctedIntent, area);
 }
 
 function downPlayer() {
@@ -133,7 +99,8 @@ function downPlayer() {
     document.getElementById("pauseBtn").textContent = ">>";
 }
 
-function createArea(x, y, cols, rows, nodeSize, safeTileWidth) {
+// game initialization functions
+function createArea({x, y, cols, rows, nodeSize, safeTileWidth}) {
     return {
         x, y, cols, rows, nodeSize,
         width: cols * nodeSize,
@@ -143,27 +110,31 @@ function createArea(x, y, cols, rows, nodeSize, safeTileWidth) {
     };
 }
 
-function spawnEnemies(enemyInfo) {
+function createPlayer(playerData) {
+    return new Entities.Player(playerData.spawn, playerData.radius, playerData.speed);
+}
+
+function createEnemies(enemyData) {
     const enemies = [];
-    for (const config of enemyInfo) {
-        for (let i = 0 ; i < config.count; i++) {
-            enemies.push(createEnemy(config, i));
+    for (const data of enemyData) {
+        for (let i = 0 ; i < data.count; i++) {
+            enemies.push(makeEnemy(data, i));
         }
     }
     return enemies;
 }
 
-function createEnemy(config, index) {
-    const spawn = getRandomCoords(area, config.radius);
+function makeEnemy(data, index) {
+    const spawn = getRandomCoords(area, data.radius);
     const angle = getRandomAngle();
 
-    switch (config.type) {
+    switch (data.type) {
         case EntityType.NORMAL:
-            return new Entities.Normal(spawn, config.radius, config.speed, angle);
+            return new Entities.Normal(spawn, data.radius, data.speed, angle);
         case EntityType.SLOWING:
-            return new Entities.Slowing(spawn, config.radius, config.speed, angle, config.auraRadius);
+            return new Entities.Slowing(spawn, data.radius, data.speed, angle, data.auraRadius);
         case EntityType.WALL:
-            return new Entities.Wall(config.radius, config.speed, config.clockwise, index / config.count, area);
+            return new Entities.Wall(data.radius, data.speed, data.clockwise, index / data.count, area);
     }
 }
 

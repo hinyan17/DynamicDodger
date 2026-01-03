@@ -14,21 +14,6 @@ export class Vector {
         return Math.sqrt(dx*dx + dy*dy);
     }
 
-    normalize() {
-        const mag = this.magnitude();
-        this.x /= mag;
-        this.y /= mag;
-    }
-
-    clamp(max) {
-        const mag = this.magnitude();
-        if (mag > max) {
-            const scale = max / mag;
-            this.x *= scale;
-            this.y *= scale;
-        }
-    }
-
     scale(n) {
         this.x *= n;
         this.y *= n; 

@@ -1,5 +1,3 @@
-import * as Drawer from "./drawer.js";
-
 export default class UIManager {
     constructor(gameState, hookFunctions) {
         // be aware of object desync
@@ -36,7 +34,7 @@ export default class UIManager {
         const gridBtn = document.getElementById("gridBtn");
         gridBtn.addEventListener("click", () => {
             this.settings.showGrid = !this.settings.showGrid;
-            Drawer.drawArea(this.gameState.area, this.settings.showGrid);
+            //Drawer.drawArea(this.gameState.area, this.settings.showGrid);
         });
 
         const tasBtn = document.getElementById("tasBtn");

@@ -1,8 +1,6 @@
-import * as Drawer from "../drawer.js";
+export default function VelocityObs(gameState, drawer) {
 
-export default function VelocityObs(gameState, settings) {
-
-    const {area, player, enemies} = gameState;
+    const {settings, area, player, enemies} = gameState;
     const globalTau = settings.SPT * 4;
     const margin = 2;
     const speedDivisions = 40;
@@ -24,11 +22,15 @@ export default function VelocityObs(gameState, settings) {
         return true;
     }
 
+    function angularDifference(a, b) {
+        const d = Math.abs(a - b) % TWOPI;
+        return d > Math.PI ? TWOPI - d : d;
+    }
+
     /*
     TODO:
     maybe switch from perfect truncated cone check to approximate linear check
     pick a better escape velocity than just static angular analysis
-    integrate better with a*, might require an any angle global planner
     maybe switch away from discrete sampling later...
     */
 
@@ -47,7 +49,7 @@ export default function VelocityObs(gameState, settings) {
         const vPref = {x: heading.ux * player.maxVel, y: heading.uy * player.maxVel};
         const vPrefInBounds = satisfyHPS(vPref);
         if (!vPrefInBounds) color = "limegreen";
-        Drawer.drawLine(player.x, player.y, player.x + vPref.x, player.y + vPref.y, 1, color);
+        drawer.drawLine(player.x, player.y, player.x + vPref.x, player.y + vPref.y, 1, color);
 
         // build the set of VOs that contain vPref
         const VOsWithPref = [];
@@ -122,10 +124,10 @@ export default function VelocityObs(gameState, settings) {
             if (best === null) {
                 const fallback = discreteSampling(vos, vPref, VOsWithPref, settings.SPT * 1);
                 if (fallback === null) {console.log("found no safe velocity"); return null;}
-                Drawer.drawLine(player.x, player.y, player.x + fallback.x, player.y + fallback.y, 1, "gold");
+                drawer.drawLine(player.x, player.y, player.x + fallback.x, player.y + fallback.y, 1, "gold");
                 return fallback;
             }
-            Drawer.drawLine(player.x, player.y, player.x + best.x, player.y + best.y, 1, "aqua");
+            drawer.drawLine(player.x, player.y, player.x + best.x, player.y + best.y, 1, "aqua");
         }
         return best;
     }
@@ -198,7 +200,7 @@ export default function VelocityObs(gameState, settings) {
             const velStep = (player.maxVel + Math.sqrt(e.vx*e.vx + e.vy*e.vy)) * tau;
             if (dist - radSum > velStep) continue;
 
-            if (settings.drawVo) Drawer.drawCircle(e.x, e.y, e.radius / 4, 2, "blue");
+            if (settings.drawVo) drawer.drawCircle(e.x, e.y, e.radius / 4, 2, "blue");
             vos.push(computeVo(e, relX, relY, dist, radSum));
         }
         return vos;
@@ -249,13 +251,7 @@ export default function VelocityObs(gameState, settings) {
         return tEntry >= 0 && tEntry <= tau;
     }
 
-    function angularDifference(a, b) {
-        const d = Math.abs(a - b) % TWOPI;
-        return d > Math.PI ? TWOPI - d : d;
-    }
-
     return {findSafeVelocity};
-
 }
 
 
