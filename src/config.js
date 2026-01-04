@@ -3,14 +3,15 @@ import { EntityType } from "./entities.js";
 
 export const settings = {
     TPS: 60,
-    inputDelay: 20,
+    inputDelay: 0,
+    slowdown: 3,
+    followPlayer: true,
     paused: false,
     showGrid: false,
     tasOn: false,
     drawBlock: false,
     drawPath: true,
-    drawVo: false,
-    followPlayer: true
+    drawVo: true
 };
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
@@ -29,19 +30,19 @@ export const playerData = {
         areaData.nodeSize * areaData.safeTileWidth / 2 + areaData.x,
         areaData.rows * areaData.nodeSize / 2 + areaData.y),
     radius: 22,
-    speed: 850
+    speed: 800
 };
 
 export const enemyData = [
     {
         type: EntityType.NORMAL,
-        count: 5,
+        count: 150,
         radius: 20,
-        speed: 400
+        speed: 150
     },
     {
         type: EntityType.SLOWING,
-        count: 10,
+        count: 0,
         radius: 20,
         speed: 120,
         auraRadius: 160

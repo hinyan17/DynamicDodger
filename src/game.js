@@ -7,15 +7,16 @@ import Drawer from "./drawer.js";
 import * as Entities from "./entities.js";
 import { EntityType } from "./entities.js";
 import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
-//import VelocityObs from "./tas/velocityObs.js";
+import VelocityObs from "./tas/velocityObs.js";
 
 // initialize game data
 const settings = Config.settings;
+const camera = new Vector(0, 0);
 const area = createArea(Config.areaData);
 const player = createPlayer(Config.playerData);
 const enemies = createEnemies(Config.enemyData);
-const gameState = {settings, area, player, enemies};
-const camera = new Vector(0, 0);
+const gameState = {settings, camera, area, player, enemies};
+window.gameState = gameState;
 
 // initialize ui, input, drawer
 const hookFunctions = {togglePause, startSlowAdvance, stopSlowAdvance};
@@ -45,16 +46,17 @@ function gameLoop(now) {
         accumulator -= settings.MSPT;
     }
 
-    if (settings.followPlayer) {
-        camera.x = player.pos.x - window.innerWidth / 2;
-        camera.y = player.pos.y - window.innerHeight / 2;
-    }
-    drawer.draw(gameState, camera);
+    postUpdate();
+    drawer.draw(gameState);
 }
 
-// 1 update is 1 tick, dt is in seconds
+// discrete collision detection, the standard for simple 2d physics.
+// technically not mathematically perfect, but the continuous version is complete overkill
 function update(dt) {
-    // capture state of input to be used for this update
+    // clear debug drawing state (tied to update rate)
+    drawer.clearDebugQueue();
+
+    // capture current input state
     const raw = inputter.getInput();
     const intentVec = inputter.processInput(raw);
 
@@ -85,11 +87,16 @@ function update(dt) {
     }
 }
 
-function tasMovePlayer(dt, intentVec) {
-    if (settings.drawBlock || settings.drawPath || settings.drawVo) {
-        drawer.drawArea(area, settings.showGrid);
+// run once per frame, after update(s)
+function postUpdate() {
+    // update camera. later: linear interp to show frames between physics updates for high fps
+    if (settings.followPlayer) {
+        camera.x = player.pos.x - window.innerWidth / 2;
+        camera.y = player.pos.y - window.innerHeight / 2;
     }
+}
 
+function tasMovePlayer(dt, intentVec) {
     const correctedIntent = velObs.findSafeVelocity(intentVec);
     player.move(dt, correctedIntent, area);
 }
@@ -142,6 +149,7 @@ function makeEnemy(data, index) {
 function advanceFrame() {
     if (!settings.paused) return;
     update(settings.SPT);
+    postUpdate();
     drawer.draw(gameState);
 }
 
@@ -163,7 +171,7 @@ function startSlowAdvance(e) {
     advanceFrame();
     initialTimer = setTimeout(() => {
         advanceFrame();
-        repeatTimer = setInterval(advanceFrame, 3 * settings.MSPT);
+        repeatTimer = setInterval(advanceFrame, settings.slowdown * settings.MSPT);
     }, 250);
 }
 

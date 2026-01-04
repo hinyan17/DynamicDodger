@@ -1,47 +1,47 @@
 export default class Drawer {
     constructor() {
-        // background canvas for drawing area, grid lines, nodes, paths
-        this.backCanvas = document.getElementById("backCanvas");
-        this.backCanvas.width = window.innerWidth;
-        this.backCanvas.height = window.innerHeight;
-        this.bgctx = this.backCanvas.getContext("2d");
-
-        // normal game canvas for drawing player, enemies
         this.canvas = document.getElementById("gameCanvas");
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
         this.ctx = this.canvas.getContext("2d");
+        this.debugQueue = [];
     }
 
     drawArea(area, showGrid) {
-        this.bgctx.fillStyle = "white";
-        this.bgctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height);
+        // main area
+        this.ctx.fillStyle = "white";
+        this.ctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height)
 
-        this.bgctx.fillStyle = "lightgray";
-        this.bgctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
-        this.bgctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
+        // safe zones
+        this.ctx.fillStyle = "lightgray";
+        this.ctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
+        this.ctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
         if (showGrid) this.drawGrid(area);
     }
 
     drawGrid(area) {
-        this.bgctx.strokeStyle = "#222";
-        this.bgctx.lineWidth = 0.3;
-        
+        this.ctx.strokeStyle = "#222";
+        this.ctx.lineWidth = 0.3;
+
+        // vertical lines
         for (let x = area.x + area.nodeSize; x < area.x + area.width; x += area.nodeSize) {
-            this.bgctx.beginPath();
-            this.bgctx.moveTo(x, area.y);
-            this.bgctx.lineTo(x, area.y + area.height);
-            this.bgctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, area.y);
+            this.ctx.lineTo(x, area.y + area.height);
+            this.ctx.stroke();
         }
+
+        // horizontal lines
         for (let y = area.y + area.nodeSize; y < area.y + area.height; y += area.nodeSize) {
-            this.bgctx.beginPath();
-            this.bgctx.moveTo(area.x, y);
-            this.bgctx.lineTo(area.x + area.width, y);
-            this.bgctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.moveTo(area.x, y);
+            this.ctx.lineTo(area.x + area.width, y);
+            this.ctx.stroke();
         }
     }
 
     drawPlayer(player) {
+        this.ctx.lineWidth = 1;
         //this.ctx.fillStyle = "#1E90FF";
         this.ctx.strokeStyle = "#1E90FF";
         this.ctx.beginPath();
@@ -51,6 +51,7 @@ export default class Drawer {
     }
 
     drawEnemies(enemies) {
+        this.ctx.lineWidth = 1;
         for (const e of enemies) {
             //ctx.fillStyle = e.color;
             this.ctx.strokeStyle = e.color;
@@ -62,6 +63,7 @@ export default class Drawer {
     }
 
     drawAuras(enemies) {
+        // group enemies of the same aura type
         const auraGroups = new Map();
         for (const e of enemies) {
             if (!e.aura) continue;
@@ -72,6 +74,7 @@ export default class Drawer {
             }
         }
 
+        // draw each group continuously (no overlap between same auras)
         for (const group of auraGroups.values()) {
             this.ctx.fillStyle = group[0].auraColor;
             this.ctx.beginPath();
@@ -83,21 +86,67 @@ export default class Drawer {
         }
     }
 
-    draw(gameState, camera) {
-        this.bgctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.bgctx.fillStyle = "#222";
-        this.bgctx.fillRect(0, 0, this.backCanvas.width, this.backCanvas.height);
-
+    draw(gameState) {
+        // reset gamecanvas transformation and fill with dark gray
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = "#222";
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.bgctx.translate(-camera.x, -camera.y);
-        this.ctx.translate(-camera.x, -camera.y);
+        // apply camera offset (shifts origin) to determine what part of the world is visible 
+        this.ctx.translate(-gameState.camera.x, -gameState.camera.y);
 
         this.drawArea(gameState.area, gameState.settings.showGrid);
         this.drawPlayer(gameState.player);
         this.drawEnemies(gameState.enemies);
         this.drawAuras(gameState.enemies);
+        this.drawDebug();
+    }
+
+    /*
+    -------- debug drawing queue for nodes, paths, indicators, etc, created in game.update() --------
+    SEPARATION OF CONCERNS
+    update(): manages state (what should be drawn?)
+    draw(): manages how to draw
+
+    these responsibilities should not change. although debug drawing data is generated in update(), it should not be drawn
+    until draw() runs. therefore, the queue. this is much cleaner and efficient than managing two canvases.
+    that approach couples the responsibilities and inevitably introduces visual bugs.
+
+    the queue works regardless of the difference between fps and tps:
+    higher fps (screen > game): update() runs rarely, the queue sits untouched between updates. draw() redraws the queue.
+    higher tps (game > screen): update() runs in bursts, the queue is constantly changing. draw() draws the queue's final state.
+    -------------------------------------------------------------------------------------------------
+    */
+    drawDebug() {
+        for (const drawFn of this.debugQueue) {
+            drawFn();
+        }
+    }
+
+    clearDebugQueue() {
+        this.debugQueue = [];
+    }
+
+    queueDrawCircle(x, y, radius, thickness, color) {
+        // closure captures necessary vars
+        this.debugQueue.push(() => {
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = thickness;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            this.ctx.stroke();
+        });
+    }
+
+    queueDrawLine(x, y, x2, y2, thickness, color) {
+        this.debugQueue.push(() => {
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = thickness;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.stroke();
+        });
     }
 }
 /*
@@ -146,22 +195,9 @@ export function drawSquare(x, y, halfSize, color) {
     bgctx.fillRect(x - halfSize, y - halfSize, halfSize * 2, halfSize * 2);
 }
 
-export function drawCircle(x, y, radius, thickness, color) {
-    bgctx.strokeStyle = color;
-    bgctx.lineWidth = thickness;
-    bgctx.beginPath();
-    bgctx.arc(x, y, radius, 0, 2 * Math.PI);
-    bgctx.stroke();
-}
+// drawCircle
 
-export function drawLine(x, y, x2, y2, thickness, color) {
-    bgctx.strokeStyle = color;
-    bgctx.lineWidth = thickness;
-    bgctx.beginPath();
-    bgctx.moveTo(x, y);
-    bgctx.lineTo(x2, y2);
-    bgctx.stroke();
-}
+// drawLine
 
 export function drawVo(vo, px, py) {
     const S = 120;

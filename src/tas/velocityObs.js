@@ -1,3 +1,5 @@
+import { Vector } from "../utils.js";
+
 export default function VelocityObs(gameState, drawer) {
 
     const {settings, area, player, enemies} = gameState;
@@ -8,10 +10,10 @@ export default function VelocityObs(gameState, drawer) {
 
     // bottom top left right wall half planes of admissible velocities
     const wallHPS = [
-        {nx: 0, ny: -1, rhs: () => (player.y - area.y - player.radius) / settings.SPT},
-        {nx: 0, ny: 1, rhs: () => (area.y + area.height - player.y - player.radius) / settings.SPT},
-        {nx: -1, ny: 0, rhs: () => (player.x - area.x - player.radius) / settings.SPT},
-        {nx: 1, ny: 0, rhs: () => (area.x + area.width - player.x - player.radius) / settings.SPT}
+        {nx: 0, ny: -1, rhs: () => (player.pos.y - area.y - player.radius) / settings.SPT},
+        {nx: 0, ny: 1, rhs: () => (area.y + area.height - player.pos.y - player.radius) / settings.SPT},
+        {nx: -1, ny: 0, rhs: () => (player.pos.x - area.x - player.radius) / settings.SPT},
+        {nx: 1, ny: 0, rhs: () => (area.x + area.width - player.pos.x - player.radius) / settings.SPT}
     ];
 
     // test if the candidate velocity is in the region covered by the wall half planes
@@ -34,53 +36,61 @@ export default function VelocityObs(gameState, drawer) {
     maybe switch away from discrete sampling later...
     */
 
-    // main function. takes in preferred heading and returns the best velocity vector
-    function findSafeVelocity(heading) {
+    // main function. takes in intent vector and returns the best velocity vector
+    function findSafeVelocity(intentVec) {
+        if (!intentVec) return null;
+
         const vos = buildAllVos(globalTau);
-        if (vos === null) {console.log("null vos"); return null;}
+        //if (!vos) return null;
 
-        let color = "coral";
-        if (heading === null) {
-            heading = findEscapeHeading(vos);
-            if (heading === null) {console.log("no escape found"); return null;}
-            else color = "orchid";
-        }
-
-        const vPref = {x: heading.ux * player.maxVel, y: heading.uy * player.maxVel};
+        const vPref = new Vector(intentVec.x * player.maxSpeed, intentVec.y * player.maxSpeed);
         const vPrefInBounds = satisfyHPS(vPref);
-        if (!vPrefInBounds) color = "limegreen";
-        drawer.drawLine(player.x, player.y, player.x + vPref.x, player.y + vPref.y, 1, color);
+        //console.log(vos, vPref, vPrefInBounds);
+        const color = vPrefInBounds ? "coral" : "limegreen";
+        drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + vPref.x, player.pos.y + vPref.y, 1, color);
 
         // build the set of VOs that contain vPref
-        const VOsWithPref = [];
+        const vosWithPref = [];
         for (let i = 0; i < vos.length; i++) {
             if (insideVO(vos[i], vPref, globalTau)) {
-                VOsWithPref.push(vos[i]);
+                vosWithPref.push(vos[i]);
             }
         }
-        // if preferred velocity is safe, just return it
-        if (VOsWithPref.length === 0) {
-            if (vPrefInBounds) return vPref;
-            console.log("no vos but bad (outside hps) velocity"); return null;
+
+        ///*
+        // if preferred velocity is safe, just return the original intent vector
+        if (vosWithPref.length === 0) {
+            if (vPrefInBounds || vos.length === 0) {
+                return intentVec;
+            }
+            console.log("vos exist, vosWithPref is 0, but vPref out of bounds. must pick new safe vel");
         }
-        // otherwise, find a safe velocity closest in angle to vPref (if one exists)
-        return discreteSampling(vos, vPref, VOsWithPref, globalTau);
+        // otherwise, find a safe velocity closest in angle to vPref, if one exists
+        const vSafe = discreteSampling(vos, vPref, vosWithPref, globalTau);
+
+        // return a corrected intent vector, NOT A VELOCITY
+        if (vSafe !== null) {
+            vSafe.scale(1 / player.maxSpeed);
+        }
+        return vSafe;
+        //*/
+        //return intentVec;
     }
 
-    function discreteSampling(vos, vPref, VOsWithPref, tau) {
-        // we iterate for every leg of every VO containing vPref,
-        // for speeds starting at maxVel and subtracting increments of 1 / speedDivisions, until a safe v is found
+    function discreteSampling(vos, vPref, vosWithPref, tau) {
+        // iterate for every leg of every VO containing vPref,
+        // for speeds starting at maxSpeed and subtracting increments of 1 / speedDivisions, until a safe v is found
         const candidates = [];
         for (let speedInc = speedDivisions; speedInc > 0; speedInc--) {
-            for (let i = 0; i < VOsWithPref.length; i++) {
-                const vo = VOsWithPref[i];
-                const speed = player.maxVel * speedInc / speedDivisions;
+            for (let i = 0; i < vosWithPref.length; i++) {
+                const vo = vosWithPref[i];
+                const speed = player.maxSpeed * speedInc / speedDivisions;
                 for (const leg of [vo.leftLeg, vo.rightLeg]) {
                     const dot = vo.apex.x * leg.x + vo.apex.y * leg.y;
                     const disc = dot*dot - (vo.apex.x*vo.apex.x + vo.apex.y*vo.apex.y - speed*speed);
                     if (disc < 0) continue;
                     const s = -dot + Math.sqrt(disc);
-                    const cand = {x: vo.apex.x + leg.x * s, y: vo.apex.y + leg.y * s};
+                    const cand = new Vector(vo.apex.x + leg.x * s, vo.apex.y + leg.y * s);
 
                     if (!satisfyHPS(cand)) continue;
                     let feasible = true;
@@ -110,7 +120,7 @@ export default function VelocityObs(gameState, drawer) {
         }
 
         if (best === null) {
-            const zero = {x: 0, y: 0};
+            const zero = new Vector(0, 0);
             const zeroSafe = !vos.some(vo => insideVO(vo, zero, tau));
             if (zeroSafe) {
                 best = zero;
@@ -122,18 +132,20 @@ export default function VelocityObs(gameState, drawer) {
         // keep temporary 1 frame lookahead fallback, might help escape traps?
         if (tau === globalTau) {
             if (best === null) {
-                const fallback = discreteSampling(vos, vPref, VOsWithPref, settings.SPT * 1);
-                if (fallback === null) {console.log("found no safe velocity"); return null;}
-                drawer.drawLine(player.x, player.y, player.x + fallback.x, player.y + fallback.y, 1, "gold");
+                const fallback = discreteSampling(vos, vPref, vosWithPref, settings.SPT * 1);
+                if (fallback === null) {
+                    console.log("found no safe velocity");
+                } else {
+                    drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + fallback.x, player.pos.y + fallback.y, 1, "gold");
+                }
                 return fallback;
             }
-            drawer.drawLine(player.x, player.y, player.x + best.x, player.y + best.y, 1, "aqua");
+            drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + best.x, player.pos.y + best.y, 1, "aqua");
         }
         return best;
     }
 
-    // this function is still scuffed. pick better method after getting base velocity selection
-    // with finite-time velocity obstacles working
+    // this is still scuffed. pick better method after getting base velocity selection with finite-time velocity obstacles working
     function findEscapeHeading(vos) {
         if (vos === null || vos.length === 0) return null;
         const intervals = [];
@@ -188,41 +200,42 @@ export default function VelocityObs(gameState, drawer) {
         const vos = [];
         for (let i = 0; i < enemies.length; i++) {
             const e = enemies[i];
-            const relX = e.x - player.x;
-            const relY = e.y - player.y;
-            const dist = Math.sqrt(relX*relX + relY*relY);
+            const relPos = new Vector(e.pos.x - player.pos.x, e.pos.y - player.pos.y);
+            const dist = relPos.magnitude();
             const radSum = e.radius + player.radius;
 
-            // agent already collided with an obstacle, what are we even doing here?
-            if (dist <= radSum) return null;
-
             // filter obstacles that can't collide within time tau even at max opposing velocity
-            const velStep = (player.maxVel + Math.sqrt(e.vx*e.vx + e.vy*e.vy)) * tau;
+            const velStep = (player.maxSpeed + e.vel.magnitude()) * tau;
             if (dist - radSum > velStep) continue;
 
-            if (settings.drawVo) drawer.drawCircle(e.x, e.y, e.radius / 4, 2, "blue");
-            vos.push(computeVo(e, relX, relY, dist, radSum));
+            if (settings.drawVo) {
+                drawer.queueDrawCircle(e.pos.x, e.pos.y, e.radius / 4, 2, "blue");
+            }
+            vos.push(computeVo(e, relPos, dist, radSum));
         }
         return vos;
     }
 
-    function computeVo(enemy, relX, relY, dist, radSum) {
-        // the filter works on pure radii sum, no safety margin. now we add the margin so that VO plans around those.
-        // if the agent is close enough to the obstacle that adding the margin would look like they already collided,
-        // then we fall back to without the margin, which is guaranteed to not have collided. this all guarantees that
-        // alpha = Math.asin(radiusSum / dist) is not undefined.
-        let newRadSum = radSum + margin;
-        if (dist <= newRadSum) newRadSum = radSum;
+    function computeVo(enemy, relPos, dist, radSum) {
+        // add the safety margin
+        let voRadius = radSum + margin;
+        if (dist <= radSum) {
+            // if the player is in an enemy, panic
+            voRadius = dist * 0.999;
+        } else if (dist <= voRadius) {
+            // if the player isn't touching the enemy, but is in the safety margin, ignore the margin
+            voRadius = radSum;
+        }
 
-        const alpha = Math.asin(newRadSum / dist);
-        const angleToEnemy = Math.atan2(relY, relX);
+        const alpha = Math.asin(Math.min(1, voRadius / dist));
+        const angleToEnemy = Math.atan2(relPos.y, relPos.x);
         const leftAng = angleToEnemy + alpha;
         const rightAng = angleToEnemy - alpha;
     
-        const leftLeg = {x: Math.cos(leftAng), y: Math.sin(leftAng)};
-        const rightLeg = {x: Math.cos(rightAng), y: Math.sin(rightAng)};
-        const apex = {x: enemy.vx, y: enemy.vy};
-        return {apex, leftLeg, rightLeg, relX, relY, rad: newRadSum};
+        const leftLeg = new Vector(Math.cos(leftAng), Math.sin(leftAng));
+        const rightLeg = new Vector(Math.cos(rightAng), Math.sin(rightAng));
+        const apex = new Vector(enemy.vel.x, enemy.vel.y);
+        return {apex, leftLeg, rightLeg, relPos, rad: voRadius};
     }
 
     function insideVO(vo, vPref, tau) {
@@ -239,8 +252,8 @@ export default function VelocityObs(gameState, drawer) {
         // finite horizon time test
         const a = dvx*dvx + dvy*dvy;
         if (a === 0) return false;
-        const b = -2*(vo.relX*dvx + vo.relY*dvy);
-        const c = (vo.relX*vo.relX + vo.relY*vo.relY) - vo.rad*vo.rad;
+        const b = -2*(vo.relPos.x*dvx + vo.relPos.y*dvy);
+        const c = (vo.relPos.x*vo.relPos.x + vo.relPos.y*vo.relPos.y) - vo.rad*vo.rad;
         const disc = b*b - 4*a*c;
         if (disc < 0) return false;
         const sqrtDisc = Math.sqrt(disc);

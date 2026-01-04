@@ -32,6 +32,7 @@ export default class InputManager {
     }
 
     handleClick(e) {
+        if (e.target.closest("button")) return;
         this.mouseActive = !this.mouseActive;
     }
 
