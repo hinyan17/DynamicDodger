@@ -36,7 +36,7 @@ export const playerData = {
 export const enemyData = [
     {
         type: EntityType.NORMAL,
-        count: 20,
+        count: 30,
         radius: 50,
         speed: 100
     },
@@ -62,3 +62,54 @@ export const enemyData = [
         clockwise: false
     }
 ];
+
+/*
+pp2 16
+export const enemyData = [
+    {
+        type: EntityType.WITHERING,
+        count: 10,
+        radius: 6,
+        speed: 240,
+        auraRadius: 100
+    },
+    {
+        type: EntityType.NORMAL,
+        count: 30,
+        radius: 12,
+        speed: 420
+    },
+    {
+        type: EntityType.NORMAL,
+        count: 25,
+        radius: 18,
+        speed: 360
+    },
+    {
+        type: EntityType.NORMAL,
+        count: 15,
+        radius: 24,
+        speed: 240
+    },
+    {
+        type: EntityType.NORMAL,
+        count: 10,
+        radius: 40,
+        speed: 120
+    },
+    {
+        type: EntityType.WALL,
+        count: 6,
+        radius: 30,
+        speed: 660,
+        clockwise: true
+    },
+    {
+        type: EntityType.WALL,
+        count: 6,
+        radius: 30,
+        speed: 660,
+        clockwise: false
+    }
+];
+*/

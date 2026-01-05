@@ -3,9 +3,9 @@ import { Vector, angularDifference } from "../utils.js";
 export default function VelocityObs(gameState, drawer) {
 
     const {settings, area, player, enemies} = gameState;
-    const globalTau = settings.SPT * 4;
-    const margin = 2;
-    const speedDivisions = 40;
+    const globalTau = settings.SPT * 3;
+    const margin = 3;
+    const speedDivisions = 50;
 
     /*
     todo list:
@@ -14,7 +14,7 @@ export default function VelocityObs(gameState, drawer) {
     maybe switch away from discrete sampling later...
     */
 
-    function createDrawArtifacts(vos, vosWithPref, vPref, vPrefInBounds) {
+    function drawVos(vos, vosWithPref, vPref, vPrefInBounds) {
         let color = vPrefInBounds ? "coral" : "limegreen";
         drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + vPref.x, player.pos.y + vPref.y, 1, color);
 
@@ -81,7 +81,7 @@ export default function VelocityObs(gameState, drawer) {
         }
 
         if (settings.drawVo) {
-            createDrawArtifacts(vos, vosWithPref, vPref, vPrefInBounds);
+            drawVos(vos, vosWithPref, vPref, vPrefInBounds);
         }
 
         // if preferred velocity is safe, just return the original intent vector
@@ -99,19 +99,42 @@ export default function VelocityObs(gameState, drawer) {
     }
 
     function discreteSampling(vos, vPref, vosWithPref, tau) {
-        // iterate for every leg of every VO containing vPref,
-        // for speeds starting at maxSpeed and subtracting increments of 1 / speedDivisions, until a safe v is found
-        const candidates = [];
+        // pick the candidate velocity with closest magnitude and angle to vPref (use squared euclidean distance)
+        let bestCand = null;
+        let minDistSq = Infinity;
+
+        const vPrefMag = vPref.magnitude();
         for (let speedInc = speedDivisions; speedInc > 0; speedInc--) {
+            const speed = player.maxSpeed * speedInc / speedDivisions;
+
+            // optimization: find the "best theoretical distance" at this speed tier
+            // assume the angle is perfectly aligned with vPref, so the distance is |speed - vPrefMag|
+            const diff = speed - vPrefMag;
+            const theoreticalMinDistSq = diff * diff;
+
+            // if the perfect case is worse than minDistSq, no speed <= this can beat it. stop searching
+            if (theoreticalMinDistSq >= minDistSq) {
+                break;
+            }
+
             for (const vo of vosWithPref) {
-                const speed = player.maxSpeed * speedInc / speedDivisions;
                 for (const leg of [vo.leftLeg, vo.rightLeg]) {
                     const dot = vo.apex.x * leg.x + vo.apex.y * leg.y;
                     const disc = dot*dot - (vo.apex.x*vo.apex.x + vo.apex.y*vo.apex.y - speed*speed);
                     if (disc < 0) continue;
                     const s = -dot + Math.sqrt(disc);
-                    const cand = new Vector(vo.apex.x + leg.x * s, vo.apex.y + leg.y * s);
+                    if (s < 0) continue;
 
+                    // skip worse candidates
+                    const candX = vo.apex.x + leg.x * s;
+                    const candY = vo.apex.y + leg.y * s;
+                    const dx = candX - vPref.x;
+                    const dy = candY - vPref.y;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq >= minDistSq) continue;
+
+                    // construct candidate vector and check feasibility
+                    const cand = new Vector(candX, candY);
                     if (!satisfyHPS(cand)) continue;
                     let feasible = true;
                     for (const vo2 of vos) {
@@ -121,38 +144,20 @@ export default function VelocityObs(gameState, drawer) {
                             break;
                         }
                     }
-                    if (feasible) candidates.push(cand);
+
+                    // if it's safe, it is now the new best candidate
+                    if (feasible) {
+                        minDistSq = distSq;
+                        bestCand = cand;
+                    }
                 }
-            }
-            if (candidates.length > 0) break;
-        }
-
-        // choose the candidate with the least angular difference to vPref
-        const aPref = Math.atan2(vPref.y, vPref.x);
-        let best = null;
-        let bestDiff = Infinity;
-        for (const cand of candidates) {
-            const a = Math.atan2(cand.y, cand.x);
-            const d = angularDifference(a, aPref);
-            if (d < bestDiff) {
-                best = cand;
-                bestDiff = d;
-            }
-        }
-
-        if (best === null) {
-            const zero = new Vector(0, 0);
-            const zeroSafe = !vos.some(vo => insideVO(vo, zero, tau));
-            if (zeroSafe) {
-                best = zero;
-                console.log("chose zero velocity");
             }
         }
 
         //if (best === null) {console.log("found no safe velocity"); return null;}
         // keep temporary 1 frame lookahead fallback, might help escape traps?
         if (tau === globalTau) {
-            if (best === null) {
+            if (bestCand === null) {
                 const fallback = discreteSampling(vos, vPref, vosWithPref, settings.SPT * 1);
                 if (fallback === null) {
                     console.log("found no safe velocity");
@@ -161,9 +166,9 @@ export default function VelocityObs(gameState, drawer) {
                 }
                 return fallback;
             }
-            drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + best.x, player.pos.y + best.y, 1, "aqua");
+            drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + bestCand.x, player.pos.y + bestCand.y, 1, "aqua");
         }
-        return best;
+        return bestCand;
     }
 
     function buildAllVos(tau) {
