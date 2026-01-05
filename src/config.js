@@ -36,9 +36,9 @@ export const playerData = {
 export const enemyData = [
     {
         type: EntityType.NORMAL,
-        count: 150,
-        radius: 20,
-        speed: 150
+        count: 20,
+        radius: 50,
+        speed: 100
     },
     {
         type: EntityType.SLOWING,

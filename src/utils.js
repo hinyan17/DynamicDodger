@@ -38,3 +38,9 @@ export function getRandomCoords(area, radius) {
 export function getRandomAngle() {
     return Math.random() * 2 * Math.PI;
 }
+
+const TWOPI = 2 * Math.PI;
+export function angularDifference(a, b) {
+    const d = Math.abs(a - b) % TWOPI;
+    return d > Math.PI ? TWOPI - d : d;
+}

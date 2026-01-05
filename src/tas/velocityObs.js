@@ -1,4 +1,4 @@
-import { Vector } from "../utils.js";
+import { Vector, angularDifference } from "../utils.js";
 
 export default function VelocityObs(gameState, drawer) {
 
@@ -6,7 +6,24 @@ export default function VelocityObs(gameState, drawer) {
     const globalTau = settings.SPT * 4;
     const margin = 2;
     const speedDivisions = 40;
-    const TWOPI = 2 * Math.PI;
+
+    /*
+    todo list:
+    maybe switch from perfect truncated cone check to approximate linear check
+    pick a better escape velocity than just static angular analysis
+    maybe switch away from discrete sampling later...
+    */
+
+    function createDrawArtifacts(vos, vosWithPref, vPref, vPrefInBounds) {
+        let color = vPrefInBounds ? "coral" : "limegreen";
+        drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + vPref.x, player.pos.y + vPref.y, 1, color);
+
+        for (const vo of vos) {
+            color = vosWithPref.includes(vo) ? "gold" : "blue";
+            drawer.queueDrawCircle(vo.enemy.pos.x, vo.enemy.pos.y, vo.enemy.radius / 4, 2, color);
+            drawer.queueDrawLine(vo.enemy.pos.x, vo.enemy.pos.y, vo.enemy.pos.x + vo.enemy.vel.x, vo.enemy.pos.y + vo.enemy.vel.y, 1, "blue");
+        }
+    }
 
     // bottom top left right wall half planes of admissible velocities
     const wallHPS = [
@@ -24,30 +41,36 @@ export default function VelocityObs(gameState, drawer) {
         return true;
     }
 
-    function angularDifference(a, b) {
-        const d = Math.abs(a - b) % TWOPI;
-        return d > Math.PI ? TWOPI - d : d;
+    // clamps a velocity so it doesn't violate wall boundaries. essentially the "sliding" velocity.
+    function clampToWalls(vel) {
+        let vx = vel.x;
+        let vy = vel.y;
+
+        for (const hp of wallHPS) {
+            // calculate the limit for this wall (rhs)
+            const limit = hp.rhs();
+
+            // check component of velocity in direction of wall normal
+            const velInNormal = hp.nx * vx + hp.ny * vy;
+
+            // if limit is exceeded (moving into the wall too fast)
+            if (velInNormal > limit) {
+                // remove the excess velocity into the wall
+                vx -= hp.nx * (velInNormal - limit);
+                vy -= hp.ny * (velInNormal - limit);
+            }
+        }
+        return new Vector(vx, vy);
     }
 
-    /*
-    TODO:
-    maybe switch from perfect truncated cone check to approximate linear check
-    pick a better escape velocity than just static angular analysis
-    maybe switch away from discrete sampling later...
-    */
-
-    // main function. takes in intent vector and returns the best velocity vector
+    // main function. takes in intent vector and returns the intent vector of the best velocity vector
     function findSafeVelocity(intentVec) {
         if (!intentVec) return null;
 
-        const vos = buildAllVos(globalTau);
-        //if (!vos) return null;
-
-        const vPref = new Vector(intentVec.x * player.maxSpeed, intentVec.y * player.maxSpeed);
+        const vRaw = new Vector(intentVec.x * player.maxSpeed, intentVec.y * player.maxSpeed);
+        const vPref = clampToWalls(vRaw);
         const vPrefInBounds = satisfyHPS(vPref);
-        //console.log(vos, vPref, vPrefInBounds);
-        const color = vPrefInBounds ? "coral" : "limegreen";
-        drawer.queueDrawLine(player.pos.x, player.pos.y, player.pos.x + vPref.x, player.pos.y + vPref.y, 1, color);
+        const vos = buildAllVos(globalTau);
 
         // build the set of VOs that contain vPref
         const vosWithPref = [];
@@ -57,24 +80,22 @@ export default function VelocityObs(gameState, drawer) {
             }
         }
 
-        ///*
+        if (settings.drawVo) {
+            createDrawArtifacts(vos, vosWithPref, vPref, vPrefInBounds);
+        }
+
         // if preferred velocity is safe, just return the original intent vector
         if (vosWithPref.length === 0) {
-            if (vPrefInBounds || vos.length === 0) {
-                return intentVec;
-            }
-            console.log("vos exist, vosWithPref is 0, but vPref out of bounds. must pick new safe vel");
+            return intentVec;
         }
         // otherwise, find a safe velocity closest in angle to vPref, if one exists
         const vSafe = discreteSampling(vos, vPref, vosWithPref, globalTau);
 
-        // return a corrected intent vector, NOT A VELOCITY
+        // return a corrected intent vector, not a velocity
         if (vSafe !== null) {
             vSafe.scale(1 / player.maxSpeed);
         }
         return vSafe;
-        //*/
-        //return intentVec;
     }
 
     function discreteSampling(vos, vPref, vosWithPref, tau) {
@@ -82,8 +103,7 @@ export default function VelocityObs(gameState, drawer) {
         // for speeds starting at maxSpeed and subtracting increments of 1 / speedDivisions, until a safe v is found
         const candidates = [];
         for (let speedInc = speedDivisions; speedInc > 0; speedInc--) {
-            for (let i = 0; i < vosWithPref.length; i++) {
-                const vo = vosWithPref[i];
+            for (const vo of vosWithPref) {
                 const speed = player.maxSpeed * speedInc / speedDivisions;
                 for (const leg of [vo.leftLeg, vo.rightLeg]) {
                     const dot = vo.apex.x * leg.x + vo.apex.y * leg.y;
@@ -107,6 +127,7 @@ export default function VelocityObs(gameState, drawer) {
             if (candidates.length > 0) break;
         }
 
+        // choose the candidate with the least angular difference to vPref
         const aPref = Math.atan2(vPref.y, vPref.x);
         let best = null;
         let bestDiff = Infinity;
@@ -145,57 +166,6 @@ export default function VelocityObs(gameState, drawer) {
         return best;
     }
 
-    // this is still scuffed. pick better method after getting base velocity selection with finite-time velocity obstacles working
-    function findEscapeHeading(vos) {
-        if (vos === null || vos.length === 0) return null;
-        const intervals = [];
-        for (let i = 0; i < vos.length; i++) {
-            const vo = vos[i];
-            let bound1 = (Math.atan2(vo.leftLeg.y, vo.leftLeg.x) + TWOPI) % TWOPI;
-            let bound2 = (Math.atan2(vo.rightLeg.y, vo.rightLeg.x) + TWOPI) % TWOPI;
-            const diff = (bound1 - bound2 + TWOPI) % TWOPI;
-            if (diff > Math.PI) {
-                [bound1, bound2] = [bound2, bound1];
-            }
-            if (bound2 <= bound1) {
-                intervals.push([bound2, bound1]);
-            } else {
-                intervals.push([bound2, TWOPI], [0, bound1]);
-            }
-        }
-
-        // sort and merge angles
-        intervals.sort((u, v) => u[0] - v[0]);
-        const merged = [intervals[0].slice()];
-        for (let i = 1; i < intervals.length; i++) {
-            const [start, end] = intervals[i];
-            const last = merged[merged.length - 1];
-            if (start <= last[1]) {
-                last[1] = Math.max(last[1], end);
-            } else {
-                merged.push([start, end]);
-            }
-        }
-
-        // find biggest gap
-        let bestGap = -Infinity;
-        let bestStart = 0;
-        for (let i = 0; i < merged.length; i++) {
-            const end = merged[i][1];
-            const nextStart = (i === merged.length - 1) ? merged[0][0] + TWOPI : merged[i+1][0];
-            const gap = nextStart - end;
-            if (gap > bestGap) {
-                bestGap = gap;
-                bestStart = end;
-            }
-        }
-
-        // union of VO cones fully covered, nowhere to go
-        if (bestGap <= 0) return null;
-        const midpoint = (bestStart + bestGap / 2) % TWOPI;
-        return {ux: Math.cos(midpoint), uy: Math.sin(midpoint)};
-    }
-
     function buildAllVos(tau) {
         const vos = [];
         for (let i = 0; i < enemies.length; i++) {
@@ -208,9 +178,6 @@ export default function VelocityObs(gameState, drawer) {
             const velStep = (player.maxSpeed + e.vel.magnitude()) * tau;
             if (dist - radSum > velStep) continue;
 
-            if (settings.drawVo) {
-                drawer.queueDrawCircle(e.pos.x, e.pos.y, e.radius / 4, 2, "blue");
-            }
             vos.push(computeVo(e, relPos, dist, radSum));
         }
         return vos;
@@ -235,7 +202,7 @@ export default function VelocityObs(gameState, drawer) {
         const leftLeg = new Vector(Math.cos(leftAng), Math.sin(leftAng));
         const rightLeg = new Vector(Math.cos(rightAng), Math.sin(rightAng));
         const apex = new Vector(enemy.vel.x, enemy.vel.y);
-        return {apex, leftLeg, rightLeg, relPos, rad: voRadius};
+        return {enemy, apex, leftLeg, rightLeg, relPos, rad: voRadius};
     }
 
     function insideVO(vo, vPref, tau) {
