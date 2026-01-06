@@ -29,12 +29,11 @@ export default class UIManager {
     }
 
     addButtonListeners() {
-        const {togglePause, startSlowAdvance, stopSlowAdvance} = this.hookFunctions;
+        const {togglePause, startSlow, stopSlow} = this.hookFunctions;
 
         const gridBtn = document.getElementById("gridBtn");
         gridBtn.addEventListener("click", () => {
             this.settings.showGrid = !this.settings.showGrid;
-            //Drawer.drawArea(this.gameState.area, this.settings.showGrid);
         });
 
         const tasBtn = document.getElementById("tasBtn");
@@ -49,23 +48,25 @@ export default class UIManager {
         });
 
         const frameBtn = document.getElementById("frameBtn");
-        frameBtn.addEventListener("mousedown", startSlowAdvance);
-        frameBtn.addEventListener("mouseup", stopSlowAdvance);
+        frameBtn.addEventListener("mousedown", startSlow);
+        frameBtn.addEventListener("mouseup", stopSlow);
     }
 
     addInputListeners() {
-        const {startSlowAdvance, stopSlowAdvance} = this.hookFunctions;
+        const {resize, startSlow, stopSlow} = this.hookFunctions;
 
         window.addEventListener("keydown", e => {
             if (e.code === "Space") {
-                startSlowAdvance(e);
+                startSlow(e);
             }
         });
 
         window.addEventListener("keyup", e => {
             if (e.code === "Space") {
-                stopSlowAdvance(e);
+                stopSlow(e);
             }
         });
+
+        window.addEventListener("resize", resize);
     }
 }

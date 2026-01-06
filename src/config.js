@@ -1,13 +1,16 @@
 import { Vector } from "./utils.js";
 import { EnemyType } from "./entities.js";
 
+export const GAME_WIDTH = 1920;
+export const GAME_HEIGHT = 1080;
+
 export const settings = {
     TPS: 60,
     inputDelay: 0,
     slowdown: 3,
     followPlayer: true,
     paused: false,
-    showGrid: false,
+    showGrid: true,
     tasOn: false,
     drawBlock: false,
     drawPath: true,
@@ -16,21 +19,24 @@ export const settings = {
 settings.SPT = 1 / settings.TPS;        // seconds per tick
 settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
 
+
+//standard width height: 3200 480 (100x15)
+//2100 700
 export const areaData = {
     x: 0,
     y: 155,
-    cols: 150,
-    rows: 50,
-    nodeSize: 14,
-    safeTileWidth: 8
+    cols: 100,
+    rows: 15,
+    nodeSize: 32,
+    safeTileWidth: 10
 };
 
 export const playerData = {
     spawn: new Vector(
         areaData.nodeSize * areaData.safeTileWidth / 2 + areaData.x,
         areaData.rows * areaData.nodeSize / 2 + areaData.y),
-    radius: 22,
-    speed: 800
+    radius: 15,
+    speed: 510
 };
 
 /*
@@ -38,7 +44,7 @@ export const enemyData = [
     {
         type: EnemyType.NORMAL,
         count: 30,
-        radius: 50,
+        radius: 24,
         speed: 100
     },
     {
@@ -65,7 +71,7 @@ export const enemyData = [
 ];
 */
 ///*
-//pp2 16
+//16
 export const enemyData = [
     {
         type: EnemyType.WITHERING,

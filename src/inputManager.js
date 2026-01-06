@@ -1,12 +1,13 @@
 import { Vector } from "./utils.js";
 
 export default class InputManager {
-    constructor(delay) {
+    constructor(canvas, delay) {
+        this.canvas = canvas;
+        this.delay = delay;
         this.keys = {up: false, down: false, left: false, right: false};
         this.mousePos = new Vector(0, 0);
         this.mouseActive = false;
         this.inputBuffer = [];
-        this.delay = delay;
         
         this.handleKey = this.handleKey.bind(this);
         this.handleClick = this.handleClick.bind(this);
@@ -37,8 +38,21 @@ export default class InputManager {
     }
 
     handleMouse(e) {
-        this.mousePos.x = e.pageX - window.innerWidth / 2;
-        this.mousePos.y = e.pageY - window.innerHeight / 2;
+        // not a good idea to pass the entire canvas and calculate every frame, but that can be dealt with later
+        // get the visual bounding box of the canvas in exact screen coordinates
+        const rect = this.canvas.getBoundingClientRect();
+
+        // calculate the scaling ratio (game pixels / screen pixels)
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+
+        // calculate position relative to the canvas top left
+        const canvasX = (e.clientX - rect.left) * scaleX;
+        const canvasY = (e.clientY - rect.top) * scaleY;
+
+        // center the coordinates (game uses 0,0 as center). subtract half of the internal resolution
+        this.mousePos.x = canvasX - (this.canvas.width / 2);
+        this.mousePos.y = canvasY - (this.canvas.height / 2);
     }
 
     setDelay(delay) {

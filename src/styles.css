@@ -4,6 +4,7 @@ body {
     padding: 0;
     height: 100%;
     width: 100%;
+    background-color: #222;
 }
 
 #infoBar {
@@ -48,17 +49,7 @@ body {
     user-select: none;
 }
 
-canvas {
+#gameCanvas {
     display: block;
     position: absolute;
-    top: 0;
-    left: 0;
-}
-
-#backCanvas {
-    z-index: 0;
-}
-
-#gameCanvas {
-    z-index: 1;
 }

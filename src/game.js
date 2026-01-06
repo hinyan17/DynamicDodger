@@ -15,13 +15,13 @@ const area = createArea(Config.areaData);
 const player = createPlayer(Config.playerData);
 const enemies = createEnemies(Config.enemyData);
 const gameState = {settings, camera, area, player, enemies};
-window.gameState = gameState;
+//window.gameState = gameState;
 
-// initialize ui, input, drawer
-const hookFunctions = {togglePause, startSlowAdvance, stopSlowAdvance};
-const uinterface = new UIManager(gameState, hookFunctions);
-const inputter = new InputManager(settings.inputDelay);
+// initialize drawer, input, ui
 const drawer = new Drawer();
+const inputter = new InputManager(drawer.canvas, settings.inputDelay);
+const hookFunctions = {resize: drawer.resize, togglePause, startSlow, stopSlow};
+const uinterface = new UIManager(gameState, hookFunctions);
 
 // initialize tas things
 const velObs = VelocityObs(gameState, drawer);
@@ -90,8 +90,8 @@ function update(dt) {
 function postUpdate() {
     // update camera. later: linear interp to show frames between physics updates for high fps
     if (settings.followPlayer) {
-        camera.x = player.pos.x - window.innerWidth / 2;
-        camera.y = player.pos.y - window.innerHeight / 2;
+        camera.x = player.pos.x - Config.GAME_WIDTH / 2;
+        camera.y = player.pos.y - Config.GAME_HEIGHT / 2;
     }
 }
 
@@ -168,7 +168,7 @@ function togglePause() {
 let initialTimer = null;
 let repeatTimer = null;
 
-function startSlowAdvance(e) {
+function startSlow(e) {
     e.preventDefault();
     if (initialTimer !== null) return;
 
@@ -179,7 +179,7 @@ function startSlowAdvance(e) {
     }, 250);
 }
 
-function stopSlowAdvance(e) {
+function stopSlow(e) {
     e.preventDefault();
     if (initialTimer === null) return;
     clearTimeout(initialTimer);
