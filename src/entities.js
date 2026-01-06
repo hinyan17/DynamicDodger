@@ -1,15 +1,5 @@
 import { Vector } from "./utils.js";
 
-export const EntityType = {
-    PLAYER: 0,
-    NORMAL: 1,
-    WALL: 2,
-    SLOWING: 3,
-    DRAINING: 4,
-    HOMING: 5,
-    SNIPER: 6
-};
-
 export class Player {
     constructor(pos, radius, maxSpeed) {
         this.pos = pos;
@@ -51,26 +41,32 @@ export class Player {
     }
 }
 
-class Enemy {
-    constructor(type, pos, radius, speed, angle, color, aura) {
-        this.type = type;
-        this.pos = pos;
-        this.radius = radius;
-        this.speed = speed;
-        this.vel = new Vector(Math.cos(angle) * speed, Math.sin(angle) * speed);
+class Aura {
+    constructor(color, radius) {
         this.color = color;
-        this.aura = aura;
+        this.radius = radius;
+    }
+}
+
+class Enemy {
+    constructor(data, context) {
+        this.type = data.type;
+        this.radius = data.radius;
+        this.speed = data.speed;
+        this.pos = context.spawn;
+        this.vel = new Vector(Math.cos(context.angle) * data.speed, Math.sin(context.angle) * data.speed);
     }
 
     move(dt, area) {
         this.pos.x += this.vel.x * dt;
         this.pos.y += this.vel.y * dt;
-        if (this.type !== EntityType.WALL) {
+        if (!(this instanceof Wall)) {
             this.checkAreaCollision(area);
         }
     }
 
     checkAreaCollision(area) {
+        // discrete collision detection, but with corrected (accurate) wall reflection
         // find effective limits (boundaries for the circle center)
         const minX = area.leftSafeX + this.radius;
         const maxX = area.rightSafeX - this.radius;
@@ -100,52 +96,75 @@ class Enemy {
         }
     }
 
-    auraEffect() {}
+    applyAura() {}
 }
 
 export class Normal extends Enemy {
-    constructor(pos, radius, speed, angle) {
-        super(EntityType.NORMAL, pos, radius, speed, angle, "#939393");
+    constructor(data, context) {
+        super(data, context);
+        this.color = "#939393";
     }
 }
 
 export class Slowing extends Enemy {
-    constructor(pos, radius, speed, angle, auraRadius) {
-        super(EntityType.SLOWING, pos, radius, speed, angle, "#ff0000", true);
-        this.auraColor = "rgba(255, 0, 0, 0.15)";
-        this.auraRadius = auraRadius;
+    constructor(data, context) {
+        super(data, context);
+        this.color = "#ff0000";
+        this.aura = new Aura("rgba(255, 0, 0, 0.15)", data.auraRadius);
         this.slow = 0.3;
     }
 
-    auraEffect(player) {
-        if (player.pos.distance(this.pos) < player.radius + this.auraRadius) {
+    applyAura(player) {
+        if (player.pos.distance(this.pos) < player.radius + this.aura.radius) {
+            player.slowEffect = 1 - this.slow;
+        }
+    }
+}
+
+export class Withering extends Enemy {
+    constructor(data, context) {
+        super(data, context);
+        this.color = "rgb(117, 38, 86)";
+        this.aura = new Aura("rgba(117, 38, 86, 0.15)", data.auraRadius);
+        this.slow = 0.2;
+    }
+
+    applyAura(player) {
+        if (player.pos.distance(this.pos) < player.radius + this.aura.radius) {
             player.slowEffect = 1 - this.slow;
         }
     }
 }
 
 class Draining extends Enemy {
-    constructor(pos, radius, speed, angle, auraRadius) {
-        super(EntityType.SLOWING, pos, radius, speed, angle, "#0000ff", true);
-        this.auraColor = "rgba(0, 0, 255, 0.15)";
-        this.auraRadius = auraRadius;
+    constructor(data, context) {
+        super(data, context);
+        this.color = "#0000ff";
+        this.aura = new Aura("rgba(0, 0, 255, 0.15)", data.auraRadius);
     }
 }
 
 export class Wall extends Enemy {
-    constructor(radius, speed, clockwise, startRatio, area) {
-        // vel and angle are ignored here, pos is manually updated
-        super(EntityType.WALL, new Vector(0, 0), radius, speed, 0, "#222222");
+    constructor(data, context) {
+        super(data, context);
+        this.color = "#222222";
 
-        this.clockwise = clockwise;
+        // vel and angle are ignored here, pos is manually updated
+        this.vel.x = 0;
+        this.vel.y = 0;
+        this.angle = 0;
+
+        this.clockwise = data.clockwise;
         this.bounds = {
-            x: area.leftSafeX + radius,
-            y: area.y + radius,
-            w: area.rightSafeX - area.leftSafeX - radius * 2,
-            h: area.height - radius * 2
+            x: context.area.leftSafeX + data.radius,
+            y: context.area.y + data.radius,
+            w: context.area.rightSafeX - context.area.leftSafeX - data.radius * 2,
+            h: context.area.height - data.radius * 2
         };
         this.perimeter = (this.bounds.w * 2) + (this.bounds.h * 2);
-        this.distanceTraveled = this.perimeter * startRatio;
+        // set distanceTraveled to the perimeter point equal to the spawn location
+        this.distanceTraveled = this.perimeter * (context.index / data.count);
+        // move to the spawn location
         this.updatePosVec();
     }
 
@@ -201,3 +220,24 @@ class Homing extends Enemy {
 class Sniper extends Enemy {
 
 }
+
+/*
+Enum type (uppercase string): use for programming like an enum
+Internal type (string): enemy "tag", also use for level files like JSON, YAML
+Code (class): the actual class used to create an enemy object
+*/
+// maps: internal id (string) -> code (class)
+export const EnemyRegistry = Object.freeze({
+    Normal, Wall, Slowing, Draining, Withering
+});
+
+// maps: enum type (uppercase string) -> internal id (string)
+export const EnemyType = Object.freeze(
+    Object.keys(EnemyRegistry).reduce(
+        (acc, key) => {
+            const upperKey = key.toUpperCase();
+            acc[upperKey] = key;
+            return acc;
+        }, {}
+    )
+);

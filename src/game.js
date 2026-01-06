@@ -4,8 +4,7 @@ import * as Config from "./config.js";
 import UIManager from "./uiManager.js";
 import InputManager from "./inputManager.js";
 import Drawer from "./drawer.js";
-import * as Entities from "./entities.js";
-import { EntityType } from "./entities.js";
+import { Player, EnemyRegistry, EnemyType } from "./entities.js";
 import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
 import VelocityObs from "./tas/velocityObs.js";
 
@@ -70,7 +69,7 @@ function update(dt) {
     // apply aura effects
     for (const e of enemies) {
         if (e.aura) {
-            e.auraEffect(player);
+            e.applyAura(player);
         }
     }
 
@@ -118,7 +117,7 @@ function createArea({x, y, cols, rows, nodeSize, safeTileWidth}) {
 }
 
 function createPlayer(playerData) {
-    return new Entities.Player(playerData.spawn, playerData.radius, playerData.speed);
+    return new Player(playerData.spawn, playerData.radius, playerData.speed);
 }
 
 function createEnemies(enemyData) {
@@ -132,17 +131,22 @@ function createEnemies(enemyData) {
 }
 
 function makeEnemy(data, index) {
-    const spawn = getRandomCoords(area, data.radius);
-    const angle = getRandomAngle();
+    const context = {
+        index,
+        spawn: getRandomCoords(area, data.radius),
+        angle: getRandomAngle()
+    };
 
-    switch (data.type) {
-        case EntityType.NORMAL:
-            return new Entities.Normal(spawn, data.radius, data.speed, angle);
-        case EntityType.SLOWING:
-            return new Entities.Slowing(spawn, data.radius, data.speed, angle, data.auraRadius);
-        case EntityType.WALL:
-            return new Entities.Wall(data.radius, data.speed, data.clockwise, index / data.count, area);
+    // data.type is already evaluated as the internal string representation
+    const EnemyClass = EnemyRegistry[data.type];
+    if (!EnemyClass) {
+        console.log(data.type, data);
+        throw new Error("unknown enemy type");
     }
+    if (data.type === EnemyType.WALL) {
+        context.area = area;
+    }
+    return new EnemyClass(data, context);
 }
 
 // ui hook functions

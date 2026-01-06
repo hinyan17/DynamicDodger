@@ -1,5 +1,5 @@
 import { Vector } from "./utils.js";
-import { EntityType } from "./entities.js";
+import { EnemyType } from "./entities.js";
 
 export const settings = {
     TPS: 60,
@@ -33,83 +33,84 @@ export const playerData = {
     speed: 800
 };
 
+/*
 export const enemyData = [
     {
-        type: EntityType.NORMAL,
+        type: EnemyType.NORMAL,
         count: 30,
         radius: 50,
         speed: 100
     },
     {
-        type: EntityType.SLOWING,
+        type: EnemyType.SLOWING,
         count: 0,
         radius: 20,
         speed: 120,
         auraRadius: 160
     },
     {
-        type: EntityType.WALL,
+        type: EnemyType.WALL,
         count: 10,
         radius: 30,
         speed: 120,
         clockwise: true
     },
     {
-        type: EntityType.WALL,
+        type: EnemyType.WALL,
         count: 2,
         radius: 30,
         speed: 120,
         clockwise: false
     }
 ];
-
-/*
-pp2 16
+*/
+///*
+//pp2 16
 export const enemyData = [
     {
-        type: EntityType.WITHERING,
+        type: EnemyType.WITHERING,
         count: 10,
         radius: 6,
         speed: 240,
         auraRadius: 100
     },
     {
-        type: EntityType.NORMAL,
+        type: EnemyType.NORMAL,
         count: 30,
         radius: 12,
         speed: 420
     },
     {
-        type: EntityType.NORMAL,
+        type: EnemyType.NORMAL,
         count: 25,
         radius: 18,
         speed: 360
     },
     {
-        type: EntityType.NORMAL,
+        type: EnemyType.NORMAL,
         count: 15,
         radius: 24,
         speed: 240
     },
     {
-        type: EntityType.NORMAL,
+        type: EnemyType.NORMAL,
         count: 10,
         radius: 40,
         speed: 120
     },
     {
-        type: EntityType.WALL,
+        type: EnemyType.WALL,
         count: 6,
         radius: 30,
         speed: 660,
         clockwise: true
     },
     {
-        type: EntityType.WALL,
+        type: EnemyType.WALL,
         count: 6,
         radius: 30,
         speed: 660,
         clockwise: false
     }
 ];
-*/
+//*/

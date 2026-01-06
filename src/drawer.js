@@ -76,11 +76,11 @@ export default class Drawer {
 
         // draw each group continuously (no overlap between same auras)
         for (const group of auraGroups.values()) {
-            this.ctx.fillStyle = group[0].auraColor;
+            this.ctx.fillStyle = group[0].aura.color;
             this.ctx.beginPath();
             for (const e of group) {
-                this.ctx.moveTo(e.pos.x + e.auraRadius, e.pos.y);
-                this.ctx.arc(e.pos.x, e.pos.y, e.auraRadius, 0, 2 * Math.PI);
+                this.ctx.moveTo(e.pos.x + e.aura.radius, e.pos.y);
+                this.ctx.arc(e.pos.x, e.pos.y, e.aura.radius, 0, 2 * Math.PI);
             }
             this.ctx.fill();
         }
