@@ -1,11 +1,11 @@
-import { GAME_WIDTH, GAME_HEIGHT } from "./config.js";
+import { CONSTS } from "./config.js";
 
 export default class Drawer {
     constructor() {
         this.canvas = document.getElementById("gameCanvas");
         this.ctx = this.canvas.getContext("2d");
-        this.canvas.width = GAME_WIDTH;
-        this.canvas.height = GAME_HEIGHT;
+        this.canvas.width = CONSTS.GAME_WIDTH;
+        this.canvas.height = CONSTS.GAME_HEIGHT;
         this.debugQueue = [];
 
         this.resize = this.resize.bind(this);
@@ -13,18 +13,18 @@ export default class Drawer {
     }
 
     resize() {
-        const innW = window.innerWidth;
-        const innH = window.innerHeight;
+        const innerW = window.innerWidth;
+        const innerH = window.innerHeight;
 
         // use the smaller scale (aspect fit)
-        const xvalue = innW / GAME_WIDTH;
-        const yvalue = innH / GAME_HEIGHT;
-        const scale = Math.min(xvalue, yvalue);
+        const xScale = innerW / CONSTS.GAME_WIDTH;
+        const yScale = innerH / CONSTS.GAME_HEIGHT;
+        const scale = Math.min(xScale, yScale);
         this.canvas.style.transform = `scale(${scale})`;
 
         // center the canvas
-        this.canvas.style.left = `${(innW - GAME_WIDTH) / 2}px`;
-        this.canvas.style.top = `${(innH - GAME_HEIGHT) / 2}px`;
+        this.canvas.style.left = `${(innerW - CONSTS.GAME_WIDTH) / 2}px`;
+        this.canvas.style.top = `${(innerH - CONSTS.GAME_HEIGHT) / 2}px`;
     }
 
     drawArea(area, showGrid) {
@@ -107,24 +107,20 @@ export default class Drawer {
     }
 
     draw(gameState) {
-        // reset gamecanvas transformation and fill with dark gray
+        // reset canvas transformation and fill with dark gray
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.fillStyle = "#333";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // apply scale to match original. this took hours to find
-        const scaleFactor = 1.5;
-        this.ctx.scale(scaleFactor, scaleFactor);
+        // apply scale to match
+        this.ctx.scale(CONSTS.SCALE_FACTOR, CONSTS.SCALE_FACTOR);
 
-        // calculate the offset
-        // the camera thinks the screen is 1920px wide (center 960)
-        // the scale makes the screen effectively 1280px wide (center 640)
-        // the world needs to shift by the difference (320px) to realign the centers
-        // formula: (currentWidth - (currentWidth / scale)) / 2
-        const offsetX = (this.canvas.width - (this.canvas.width / scaleFactor)) / 2;
-        const offsetY = (this.canvas.height - (this.canvas.height / scaleFactor)) / 2;
+        // camera uses original canvas dimensions
+        // fix the center shift caused by scaling: (original − scaled) / 2
+        const offsetX = (this.canvas.width - (this.canvas.width / CONSTS.SCALE_FACTOR)) / 2;
+        const offsetY = (this.canvas.height - (this.canvas.height / CONSTS.SCALE_FACTOR)) / 2;
 
-        // apply the offset to the camera position
+        // apply corrected camera translation (shifts origin)
         this.ctx.translate(
             -gameState.camera.x - offsetX,
             -gameState.camera.y - offsetY

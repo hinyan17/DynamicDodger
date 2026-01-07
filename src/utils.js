@@ -35,11 +35,11 @@ export function getRandomCoords(area, radius) {
     return new Vector(x, y);
 }
 
+const TWOPI = 2 * Math.PI;
 export function getRandomAngle() {
-    return Math.random() * 2 * Math.PI;
+    return Math.random() * TWOPI;
 }
 
-const TWOPI = 2 * Math.PI;
 export function angularDifference(a, b) {
     const d = Math.abs(a - b) % TWOPI;
     return d > Math.PI ? TWOPI - d : d;

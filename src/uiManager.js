@@ -53,11 +53,13 @@ export default class UIManager {
     }
 
     addInputListeners() {
-        const {resize, startSlow, stopSlow} = this.hookFunctions;
+        const {reset, resize, startSlow, stopSlow} = this.hookFunctions;
 
         window.addEventListener("keydown", e => {
             if (e.code === "Space") {
                 startSlow(e);
+            } else if (e.code === "KeyE") {
+                reset();
             }
         });
 

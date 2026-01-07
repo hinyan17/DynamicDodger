@@ -9,18 +9,23 @@ import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
 import VelocityObs from "./tas/velocityObs.js";
 
 // initialize game data
+const CONSTS = Config.CONSTS;
 const settings = Config.settings;
-const camera = new Vector(0, 0);
 const area = createArea(Config.areaData);
 const player = createPlayer(Config.playerData);
 const enemies = createEnemies(Config.enemyData);
+const camera = new Vector(0, 0);
 const gameState = {settings, camera, area, player, enemies};
 //window.gameState = gameState;
 
 // initialize drawer, input, ui
 const drawer = new Drawer();
 const inputter = new InputManager(drawer.canvas, settings.inputDelay);
-const hookFunctions = {resize: drawer.resize, togglePause, startSlow, stopSlow};
+const hookFunctions = {
+    reset: () => resetArea(area),
+    resize: drawer.resize,
+    togglePause, startSlow, stopSlow
+};
 const uinterface = new UIManager(gameState, hookFunctions);
 
 // initialize tas things
@@ -90,8 +95,8 @@ function update(dt) {
 function postUpdate() {
     // update camera. later: linear interp to show frames between physics updates for high fps
     if (settings.followPlayer) {
-        camera.x = player.pos.x - Config.GAME_WIDTH / 2;
-        camera.y = player.pos.y - Config.GAME_HEIGHT / 2;
+        camera.x = player.pos.x - CONSTS.GAME_WIDTH / 2;
+        camera.y = player.pos.y - CONSTS.GAME_HEIGHT / 2;
     }
 }
 
@@ -150,6 +155,13 @@ function makeEnemy(data, index) {
 }
 
 // ui hook functions
+function resetArea() {
+    player.reset();
+    for (const e of enemies) {
+        e.reset(area);
+    }
+}
+
 function advanceFrame() {
     if (!settings.paused) return;
     update(settings.SPT);

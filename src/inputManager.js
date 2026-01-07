@@ -15,6 +15,10 @@ export default class InputManager {
         this.initListeners();
     }
 
+    setDelay(delay) {
+        this.delay = delay;
+    }
+
     initListeners() {
         window.addEventListener("keydown", this.handleKey);
         window.addEventListener("keyup", this.handleKey);
@@ -53,10 +57,6 @@ export default class InputManager {
         // center the coordinates (game uses 0,0 as center). subtract half of the internal resolution
         this.mousePos.x = canvasX - (this.canvas.width / 2);
         this.mousePos.y = canvasY - (this.canvas.height / 2);
-    }
-
-    setDelay(delay) {
-        this.delay = delay;
     }
 
     getInput() {

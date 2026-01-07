@@ -1,8 +1,9 @@
-import { Vector } from "./utils.js";
+import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
 
 export class Player {
-    constructor(pos, radius, maxSpeed) {
-        this.pos = pos;
+    constructor(spawn, radius, maxSpeed) {
+        this.spawn = new Vector(spawn.x, spawn.y);
+        this.pos = new Vector(spawn.x, spawn.y);
         this.radius = radius;
         this.maxSpeed = maxSpeed;
         this.slowEffect = undefined;
@@ -10,6 +11,13 @@ export class Player {
 
     resetEffects() {
         this.slowEffect = undefined;
+    }
+
+    reset() {
+        // be careful not to modify vectors through reference
+        this.pos.x = this.spawn.x;
+        this.pos.y = this.spawn.y;
+        this.resetEffects();
     }
 
     move(dt, intentVec, area) {
@@ -96,6 +104,12 @@ class Enemy {
         }
     }
 
+    reset(area) {
+        const newAngle = getRandomAngle();
+        this.pos = getRandomCoords(area, this.radius);
+        this.vel = new Vector(Math.cos(newAngle) * this.speed, Math.sin(newAngle) * this.speed);
+    }
+
     applyAura() {}
 }
 
@@ -162,9 +176,13 @@ export class Wall extends Enemy {
             h: context.area.height - data.radius * 2
         };
         this.perimeter = (this.bounds.w * 2) + (this.bounds.h * 2);
-        // set distanceTraveled to the perimeter point equal to the spawn location
-        this.distanceTraveled = this.perimeter * (context.index / data.count);
-        // move to the spawn location
+        this.startDistance = this.perimeter * (context.index / data.count);
+        this.reset();
+    }
+
+    reset(area) {
+        // override Enemy.reset(area)
+        this.distanceTraveled = this.startDistance;
         this.updatePosVec();
     }
 
