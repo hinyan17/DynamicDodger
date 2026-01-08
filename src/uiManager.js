@@ -11,16 +11,15 @@ export default class UIManager {
     }
 
     displayInfo() {
-        const tpsSpan = document.getElementById("tpsSpan");
-        const enemySpan = document.getElementById("enemySpan");
-        const nodeSpan = document.getElementById("nodeSpan");
         const infoBar = document.getElementById("infoBar");
-
-        tpsSpan.textContent = this.settings.TPS;
-        enemySpan.textContent = this.gameState.enemies.length;
-        nodeSpan.textContent =
-            `${this.gameState.area.cols * this.gameState.area.rows}\
-            (${this.gameState.area.cols}x${this.gameState.area.rows})`;
+        infoBar.textContent = `\
+            TPS: ${this.settings.TPS}
+            Delay: ${this.settings.inputDelay}
+            Enemies: ${this.gameState.enemies.length}
+            Area: ${this.gameState.area.cols * this.gameState.area.rows}\
+                (${this.gameState.area.cols}x${this.gameState.area.rows})
+            more:
+        `;
 
         infoBar.style.opacity = "1";
         infoBar.addEventListener("click", () => {

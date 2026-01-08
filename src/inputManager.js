@@ -37,7 +37,7 @@ export default class InputManager {
     }
 
     handleClick(e) {
-        if (e.target.closest("button")) return;
+        if (e.target.closest("button, #infoBar")) return;
         this.mouseActive = !this.mouseActive;
     }
 

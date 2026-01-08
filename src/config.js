@@ -101,7 +101,7 @@ export const enemyData = [
         count: 6,
         radius: 30,
         speed: 900,
-        clockwise: true
+        clockwise: false
     }
 ];
 //*/
