@@ -136,22 +136,14 @@ function createEnemies(enemyData) {
 }
 
 function makeEnemy(data, index) {
-    const context = {
-        index,
-        spawn: getRandomCoords(area, data.radius),
-        angle: getRandomAngle()
-    };
-
     // data.type is already evaluated as the internal string representation
     const EnemyClass = EnemyRegistry[data.type];
     if (!EnemyClass) {
-        console.log(data.type, data);
-        throw new Error("unknown enemy type");
+        throw new Error("unknown enemy type, check for typos");
     }
-    if (data.type === EnemyType.WALL) {
-        context.area = area;
-    }
-    return new EnemyClass(data, context);
+
+    const context = {index, area};
+    return EnemyClass.create(data, context);
 }
 
 // ui hook functions

@@ -15,8 +15,7 @@ export class Player {
 
     reset() {
         // be careful not to modify vectors through reference
-        this.pos.x = this.spawn.x;
-        this.pos.y = this.spawn.y;
+        this.pos.set(this.spawn.x, this.spawn.y);
         this.resetEffects();
     }
 
@@ -34,8 +33,14 @@ export class Player {
     }
 
     checkAreaCollision(area) {
-        this.pos.x = Math.min(Math.max(area.x + this.radius, this.pos.x), area.x + area.width - this.radius);
-        this.pos.y = Math.min(Math.max(area.y + this.radius, this.pos.y), area.y + area.height - this.radius);
+        this.pos.x = Math.min(
+            Math.max(area.x + this.radius, this.pos.x),
+            area.x + area.width - this.radius
+        );
+        this.pos.y = Math.min(
+            Math.max(area.y + this.radius, this.pos.y),
+            area.y + area.height - this.radius
+        );
     }
 
     checkDead(enemies) {
@@ -57,17 +62,32 @@ class Aura {
 }
 
 class Enemy {
-    constructor(data, context) {
+    // creates instance, then runs reset()
+    // this is so reset() can be polymorphic, overridden funcs not allowed in constructor
+    static create(data, context) {
+        const instance = new this(data, context);
+        instance.reset(context.area);
+        return instance;
+    }
+
+    // internal only. use create()
+    constructor(data) {
         this.type = data.type;
         this.radius = data.radius;
         this.speed = data.speed;
-        this.pos = context.spawn;
-        this.vel = new Vector(Math.cos(context.angle) * data.speed, Math.sin(context.angle) * data.speed);
+        this.pos = new Vector(0, 0);
+        this.vel = new Vector(0, 0);
+    }
+
+    reset(area) {
+        const spawn = getRandomCoords(area, this.radius);
+        const angle = getRandomAngle();
+        this.pos.set(spawn.x, spawn.y);
+        this.vel.set(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
     }
 
     move(dt, area) {
-        this.pos.x += this.vel.x * dt;
-        this.pos.y += this.vel.y * dt;
+        this.pos.translate(this.vel.x * dt, this.vel.y * dt);
         if (!(this instanceof Wall)) {
             this.checkAreaCollision(area);
         }
@@ -104,25 +124,19 @@ class Enemy {
         }
     }
 
-    reset(area) {
-        const newAngle = getRandomAngle();
-        this.pos = getRandomCoords(area, this.radius);
-        this.vel = new Vector(Math.cos(newAngle) * this.speed, Math.sin(newAngle) * this.speed);
-    }
-
     applyAura() {}
 }
 
 export class Normal extends Enemy {
-    constructor(data, context) {
-        super(data, context);
+    constructor(data) {
+        super(data);
         this.color = "#939393";
     }
 }
 
 export class Slowing extends Enemy {
-    constructor(data, context) {
-        super(data, context);
+    constructor(data) {
+        super(data);
         this.color = "#ff0000";
         this.aura = new Aura("rgba(255, 0, 0, 0.15)", data.auraRadius);
         this.slow = 0.3;
@@ -136,8 +150,8 @@ export class Slowing extends Enemy {
 }
 
 export class Withering extends Enemy {
-    constructor(data, context) {
-        super(data, context);
+    constructor(data) {
+        super(data);
         this.color = "rgb(117, 38, 86)";
         this.aura = new Aura("rgba(117, 38, 86, 0.15)", data.auraRadius);
         this.slow = 0.2;
@@ -151,8 +165,8 @@ export class Withering extends Enemy {
 }
 
 class Draining extends Enemy {
-    constructor(data, context) {
-        super(data, context);
+    constructor(data) {
+        super(data);
         this.color = "#0000ff";
         this.aura = new Aura("rgba(0, 0, 255, 0.15)", data.auraRadius);
     }
@@ -160,14 +174,10 @@ class Draining extends Enemy {
 
 export class Wall extends Enemy {
     constructor(data, context) {
-        super(data, context);
+        super(data);
         this.color = "#222222";
 
-        // vel and angle are ignored here, pos is manually updated
-        this.vel.x = 0;
-        this.vel.y = 0;
-        this.angle = 0;
-
+        // vel is ignored here, pos is manually updated
         this.clockwise = data.clockwise;
         this.bounds = {
             x: context.area.leftSafeX + data.radius,
@@ -177,10 +187,9 @@ export class Wall extends Enemy {
         };
         this.perimeter = (this.bounds.w * 2) + (this.bounds.h * 2);
         this.startDistance = this.perimeter * (context.index / data.count);
-        this.reset();
     }
 
-    reset(area) {
+    reset() {
         // override Enemy.reset(area)
         this.distanceTraveled = this.startDistance;
         this.updatePosVec();

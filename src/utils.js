@@ -4,6 +4,11 @@ export class Vector {
         this.y = y;
     }
 
+    set(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
     magnitude() {
         return Math.sqrt(this.x*this.x + this.y*this.y);
     }
