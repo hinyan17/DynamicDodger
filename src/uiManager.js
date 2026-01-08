@@ -1,9 +1,9 @@
 export default class UIManager {
-    constructor(gameState, hookFunctions) {
+    constructor(gameState, settings, controller) {
         // be aware of object desync
         this.gameState = gameState;
-        this.settings = gameState.settings;
-        this.hookFunctions = hookFunctions;
+        this.settings = settings;
+        this.controller = controller;
 
         this.displayInfo();
         this.addButtonListeners();
@@ -28,7 +28,7 @@ export default class UIManager {
     }
 
     addButtonListeners() {
-        const {togglePause, startSlow, stopSlow} = this.hookFunctions;
+        const {togglePause, startSlow, stopSlow} = this.controller;
 
         const gridBtn = document.getElementById("gridBtn");
         gridBtn.addEventListener("click", () => {
@@ -52,7 +52,7 @@ export default class UIManager {
     }
 
     addInputListeners() {
-        const {reset, resize, startSlow, stopSlow} = this.hookFunctions;
+        const {reset, resize, startSlow, stopSlow} = this.controller;
 
         window.addEventListener("keydown", e => {
             if (e.code === "Space") {

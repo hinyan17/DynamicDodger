@@ -1,8 +1,8 @@
 import { Vector, angularDifference } from "../utils.js";
 
-export default function VelocityObs(gameState, drawer) {
+export default function VelocityObs(gameState, settings, drawer) {
 
-    const {settings, area, player, enemies} = gameState;
+    const {area, player, enemies} = gameState;
     const globalTau = settings.SPT * 3;
     const margin = 3;
     const speedDivisions = 50;

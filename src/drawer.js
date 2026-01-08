@@ -8,7 +8,6 @@ export default class Drawer {
         this.canvas.height = CONSTS.GAME_HEIGHT;
         this.debugQueue = [];
 
-        this.resize = this.resize.bind(this);
         this.resize();
     }
 
@@ -36,7 +35,6 @@ export default class Drawer {
         this.ctx.fillStyle = "lightgray";
         this.ctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
         this.ctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
-        if (showGrid) this.drawGrid(area);
     }
 
     drawGrid(area) {
@@ -106,7 +104,7 @@ export default class Drawer {
         }
     }
 
-    draw(gameState) {
+    draw(gameState, showGrid) {
         // reset canvas transformation and fill with dark gray
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.fillStyle = "#333";
@@ -126,7 +124,10 @@ export default class Drawer {
             -gameState.camera.y - offsetY
         );
 
-        this.drawArea(gameState.area, gameState.settings.showGrid);
+        this.drawArea(gameState.area);
+        if (showGrid) {
+            this.drawGrid(gameState.area);
+        }
         this.drawPlayer(gameState.player);
         this.drawEnemies(gameState.enemies);
         this.drawAuras(gameState.enemies);

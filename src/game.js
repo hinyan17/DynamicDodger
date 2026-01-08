@@ -1,193 +1,101 @@
 console.log("hello skibidies");
 
 import * as Config from "./config.js";
-import UIManager from "./uiManager.js";
-import InputManager from "./inputManager.js";
-import Drawer from "./drawer.js";
-import { Player, EnemyRegistry, EnemyType } from "./entities.js";
-import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
-import VelocityObs from "./tas/velocityObs.js";
+import { Player, EnemyRegistry } from "./entities.js";
+import { Vector } from "./utils.js";
 
-// initialize game data
-const CONSTS = Config.CONSTS;
-const settings = Config.settings;
-const area = createArea(Config.areaData);
-const player = createPlayer(Config.playerData);
-const enemies = createEnemies(Config.enemyData);
-const camera = new Vector(0, 0);
-const gameState = {settings, camera, area, player, enemies};
-//window.gameState = gameState;
-
-// initialize drawer, input, ui
-const drawer = new Drawer();
-const inputter = new InputManager(drawer.canvas, settings.inputDelay);
-const hookFunctions = {
-    reset: () => resetArea(area),
-    resize: drawer.resize,
-    togglePause, startSlow, stopSlow
-};
-const uinterface = new UIManager(gameState, hookFunctions);
-
-// initialize tas things
-const velObs = VelocityObs(gameState, drawer);
-
-// start the game loop
-let lastTime = performance.now();
-let accumulator = 0;
-drawer.drawArea(area, settings.showGrid);
-if (!settings.paused) requestAnimationFrame(gameLoop);
-
-function gameLoop(now) {
-    if (!settings.paused) requestAnimationFrame(gameLoop);
-    let elapsed = now - lastTime;
-    if (elapsed > 1000) elapsed = settings.MSPT;
-
-    lastTime = now;
-    accumulator += elapsed;
-
-    while (accumulator >= settings.MSPT) {
-        update(settings.SPT);
-        accumulator -= settings.MSPT;
+export default class Game {
+    constructor() {
+        this.area = this.createArea(Config.areaData);
+        this.player = this.createPlayer(Config.playerData);
+        this.enemies = this.createEnemies(Config.enemyData);
+        this.camera = new Vector(0, 0);
+        this.gameState = {
+            camera: this.camera,
+            area: this.area,
+            player: this.player,
+            enemies: this.enemies
+        };
+        //window.gameState = this.gameState;
     }
 
-    postUpdate();
-    drawer.draw(gameState);
-}
+    // discrete collision detection, the standard for simple 2d physics
+    // not mathematically perfect, but the continuous version is overkill
+    update(dt, intentVec) {
+        // reset temp effects first
+        this.player.resetEffects();
 
-// discrete collision detection, the standard for simple 2d physics.
-// technically not mathematically perfect, but the continuous version is complete overkill
-function update(dt) {
-    // clear debug drawing state (tied to update rate)
-    drawer.clearDebugQueue();
+        // move enemies
+        for (const e of this.enemies) {
+            e.move(dt, this.area);
+        }
+        // apply aura effects
+        for (const e of this.enemies) {
+            if (e.aura) {
+                e.applyAura(this.player);
+            }
+        }
 
-    // capture current input state
-    const raw = inputter.getInput();
-    const intentVec = inputter.processInput(raw);
+        // move player
+        this.player.move(dt, intentVec, this.area);
 
-    // reset temp effects first
-    player.resetEffects();
-
-    // move enemies
-    for (const e of enemies) {
-        e.move(dt, area);
-    }
-    // apply aura effects
-    for (const e of enemies) {
-        if (e.aura) {
-            e.applyAura(player);
+        // check for player hit
+        if (this.player.checkDead(this.enemies)) {
+            //downPlayer();
         }
     }
 
-    // move player
-    if (settings.tasOn) {
-        tasMovePlayer(dt, intentVec);
-    } else {
-        player.move(dt, intentVec, area);
+    // later: linear interp to show frames between physics updates for high fps
+    updateCamera() {
+        this.camera.x = this.player.pos.x - Config.CONSTS.GAME_WIDTH / 2;
+        this.camera.y = this.player.pos.y - Config.CONSTS.GAME_HEIGHT / 2;
     }
 
-    // check for player hit
-    if (player.checkDead(enemies)) {
-        //downPlayer();
+    downPlayer() {
+        //settings.paused = true;
+        //document.getElementById("pauseBtn").textContent = ">>";
     }
-}
 
-// run once per frame, after update(s)
-function postUpdate() {
-    // update camera. later: linear interp to show frames between physics updates for high fps
-    if (settings.followPlayer) {
-        camera.x = player.pos.x - CONSTS.GAME_WIDTH / 2;
-        camera.y = player.pos.y - CONSTS.GAME_HEIGHT / 2;
-    }
-}
-
-function tasMovePlayer(dt, intentVec) {
-    const correctedIntent = velObs.findSafeVelocity(intentVec);
-    player.move(dt, correctedIntent, area);
-}
-
-function downPlayer() {
-    settings.paused = true;
-    document.getElementById("pauseBtn").textContent = ">>";
-}
-
-// game initialization functions
-function createArea({x, y, cols, rows, nodeSize, safeTileWidth}) {
-    return {
-        x, y, cols, rows, nodeSize,
-        width: cols * nodeSize,
-        height: rows * nodeSize,
-        leftSafeX: x + nodeSize * safeTileWidth,
-        rightSafeX: x + (cols * nodeSize) - (nodeSize * safeTileWidth)
-    };
-}
-
-function createPlayer(playerData) {
-    return new Player(playerData.spawn, playerData.radius, playerData.speed);
-}
-
-function createEnemies(enemyData) {
-    const enemies = [];
-    for (const data of enemyData) {
-        for (let i = 0 ; i < data.count; i++) {
-            enemies.push(makeEnemy(data, i));
+    resetArea() {
+        this.player.reset();
+        for (const e of this.enemies) {
+            e.reset(this.area);
         }
     }
-    return enemies;
-}
 
-function makeEnemy(data, index) {
-    // data.type is already evaluated as the internal string representation
-    const EnemyClass = EnemyRegistry[data.type];
-    if (!EnemyClass) {
-        throw new Error("unknown enemy type, check for typos");
+    // game initialization functions
+    createArea({x, y, cols, rows, nodeSize, safeTileWidth}) {
+        return {
+            x, y, cols, rows, nodeSize,
+            width: cols * nodeSize,
+            height: rows * nodeSize,
+            leftSafeX: x + nodeSize * safeTileWidth,
+            rightSafeX: x + (cols * nodeSize) - (nodeSize * safeTileWidth)
+        };
     }
 
-    const context = {index, area};
-    return EnemyClass.create(data, context);
-}
-
-// ui hook functions
-function resetArea() {
-    player.reset();
-    for (const e of enemies) {
-        e.reset(area);
+    createPlayer(playerData) {
+        return new Player(playerData.spawn, playerData.radius, playerData.speed);
     }
-}
 
-function advanceFrame() {
-    if (!settings.paused) return;
-    update(settings.SPT);
-    postUpdate();
-    drawer.draw(gameState);
-}
-
-function togglePause() {
-    settings.paused = !settings.paused;
-    if (!settings.paused) {
-        lastTime = performance.now();
-        requestAnimationFrame(gameLoop);
+    createEnemies(enemyData) {
+        const enemies = [];
+        for (const data of enemyData) {
+            for (let i = 0 ; i < data.count; i++) {
+                enemies.push(this.makeEnemy(data, i));
+            }
+        }
+        return enemies;
     }
-}
 
-let initialTimer = null;
-let repeatTimer = null;
+    makeEnemy(data, index) {
+        // data.type is already evaluated as the internal string representation
+        const EnemyClass = EnemyRegistry[data.type];
+        if (!EnemyClass) {
+            throw new Error("unknown enemy type, check for typos");
+        }
 
-function startSlow(e) {
-    e.preventDefault();
-    if (initialTimer !== null) return;
-
-    advanceFrame();
-    initialTimer = setTimeout(() => {
-        advanceFrame();
-        repeatTimer = setInterval(advanceFrame, settings.slowdown * settings.MSPT);
-    }, 250);
-}
-
-function stopSlow(e) {
-    e.preventDefault();
-    if (initialTimer === null) return;
-    clearTimeout(initialTimer);
-    clearInterval(repeatTimer);
-    initialTimer = null;
-    repeatTimer = null;
+        const context = {index, area: this.area};
+        return EnemyClass.create(data, context);
+    }
 }
