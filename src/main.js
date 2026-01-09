@@ -51,9 +51,7 @@ function Engine() {
             updateGame();
             timeVars.accumulator -= settings.MSPT;
         }
-
         postUpdateGame();
-        drawer.draw(game.gameState, settings.showGrid);
     }
 
     function updateGame() {
@@ -78,6 +76,7 @@ function Engine() {
         if (settings.followPlayer) {
             game.updateCamera();
         }
+        drawer.draw(game.gameState, settings.drawing);
     }
 
     // controllable actions
@@ -93,7 +92,6 @@ function Engine() {
         if (!settings.paused) return;
         updateGame();
         postUpdateGame();
-        drawer.draw(game.gameState, settings.showGrid);
     }
 
     function startSlow(e) {

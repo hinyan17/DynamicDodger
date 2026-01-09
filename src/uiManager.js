@@ -32,7 +32,7 @@ export default class UIManager {
 
         const gridBtn = document.getElementById("gridBtn");
         gridBtn.addEventListener("click", () => {
-            this.settings.showGrid = !this.settings.showGrid;
+            this.settings.drawing.showGrid = !this.settings.drawing.showGrid;
         });
 
         const tasBtn = document.getElementById("tasBtn");

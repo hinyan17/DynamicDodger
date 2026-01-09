@@ -2,6 +2,7 @@ import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
 
 export class Player {
     constructor(spawn, radius, maxSpeed) {
+        this.color = "#1E90FF";
         this.spawn = new Vector(spawn.x, spawn.y);
         this.pos = new Vector(spawn.x, spawn.y);
         this.radius = radius;

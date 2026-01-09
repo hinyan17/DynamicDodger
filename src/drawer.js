@@ -27,7 +27,7 @@ export default class Drawer {
         this.canvas.style.top = `${(innerH - CONSTS.GAME_HEIGHT) / 2}px`;
     }
 
-    drawArea(area) {
+    drawArea(area, showGrid) {
         // main area
         this.ctx.fillStyle = ZoneColors.ACTIVE;
         this.ctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height)
@@ -44,9 +44,12 @@ export default class Drawer {
 
         // background tint
         if (area.bg_tint) {
-            console.log("true");
             this.ctx.fillStyle = area.bg_tint;
             this.ctx.fillRect(area.x, area.y, area.width, area.height);
+        }
+
+        if (showGrid) {
+            this.drawGrid(area);
         }
     }
 
@@ -71,24 +74,35 @@ export default class Drawer {
         }
     }
 
-    drawPlayer(player) {
-        this.ctx.lineWidth = 1;
-        //this.ctx.fillStyle = "#1E90FF";
-        this.ctx.strokeStyle = "#1E90FF";
+    drawPlayer(player, showFill) {
         this.ctx.beginPath();
         this.ctx.arc(player.pos.x, player.pos.y, player.radius, 0, 2 * Math.PI);
-        //this.ctx.fill();
-        this.ctx.stroke();
+        if (showFill) {
+            this.ctx.fillStyle = player.color;
+            this.ctx.fill();
+        } else {
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = player.color;
+            this.ctx.stroke();
+        }
     }
 
-    drawEnemies(enemies) {
-        this.ctx.lineWidth = 1;
+    drawEnemies(enemies, showFill, showOutline) {
         for (const e of enemies) {
-            //ctx.fillStyle = e.color;
-            this.ctx.strokeStyle = e.color;
             this.ctx.beginPath();
             this.ctx.arc(e.pos.x, e.pos.y, e.radius, 0, 2 * Math.PI);
-            //ctx.fill();
+
+            if (showFill) {
+                this.ctx.fillStyle = e.color;
+                this.ctx.fill();
+                if (showOutline) {
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeStyle = "#000000";
+                }
+            } else {
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeStyle = e.color;
+            }
             this.ctx.stroke();
         }
     }
@@ -117,7 +131,7 @@ export default class Drawer {
         }
     }
 
-    draw(gameState, showGrid) {
+    draw(gameState, drawSettings) {
         // reset canvas transformation and fill with dark gray
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.fillStyle = "#333";
@@ -137,25 +151,19 @@ export default class Drawer {
             -gameState.camera.y - offsetY
         );
 
-        this.drawArea(gameState.area);
-        if (showGrid) {
-            this.drawGrid(gameState.area);
-        }
-        this.drawPlayer(gameState.player);
-        this.drawEnemies(gameState.enemies);
+        this.drawArea(gameState.area, drawSettings.showGrid);
+        this.drawPlayer(gameState.player, drawSettings.showFill);
+        this.drawEnemies(gameState.enemies, drawSettings.showFill, drawSettings.showOutline);
         this.drawAuras(gameState.enemies);
         this.drawDebug();
     }
 
     /*
-    -------- debug drawing queue for nodes, paths, indicators, etc, created in game.update() --------
-    SEPARATION OF CONCERNS
-    update(): manages state (what should be drawn?)
-    draw(): manages how to draw
+    -------- debug drawing queue for nodes, paths, indicators, etc ----------------------------------
+    Single responsibilities: update() manages state (what should be drawn), draw() manages how to draw
 
-    these responsibilities should not change. although debug drawing data is generated in update(), it should not be drawn
-    until draw() runs. therefore, the queue. this is much cleaner and efficient than managing two canvases.
-    that approach couples the responsibilities and inevitably introduces visual bugs.
+    although debug drawing data is generated before update(), it should not be drawn until draw() runs.
+    therefore, the queue. this is cleaner and more efficient than managing two canvases.
 
     the queue works regardless of the difference between fps and tps:
     higher fps (screen > game): update() runs rarely, the queue sits untouched between updates. draw() redraws the queue.

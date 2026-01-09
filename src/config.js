@@ -16,18 +16,22 @@ export const settings = Object.freeze({
     slowdown: 3,
     followPlayer: true,
     paused: false,
-    showGrid: true,
     tasOn: false,
-    drawBlock: false,
-    drawPath: true,
-    drawVo: true
+    drawing: {
+        showGrid: false,
+        showFill: false,
+        showOutline: true,
+        showBlock: false,
+        showPath: true,
+        showVo: true
+    }
 });
 
 
 //standard width height: 3200 480 (100x15)
 //2100 700
 export const areaData = Object.freeze({
-    bg_tint: "rgba(57, 13, 57, 0.5)",
+    //bg_tint: "rgba(57, 13, 57, 0.5)",
     x: 0,
     y: 155,
     cols: 100,

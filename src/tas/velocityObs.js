@@ -10,7 +10,6 @@ export default function VelocityObs(gameState, settings, drawer) {
     /*
     todo list:
     maybe switch from perfect truncated cone check to approximate linear check
-    pick a better escape velocity than just static angular analysis
     maybe switch away from discrete sampling later...
     */
 
@@ -80,7 +79,7 @@ export default function VelocityObs(gameState, settings, drawer) {
             }
         }
 
-        if (settings.drawVo) {
+        if (settings.drawing.showVo) {
             drawVos(vos, vosWithPref, vPref, vPrefInBounds);
         }
 
