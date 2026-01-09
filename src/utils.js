@@ -49,3 +49,11 @@ export function angularDifference(a, b) {
     const d = Math.abs(a - b) % TWOPI;
     return d > Math.PI ? TWOPI - d : d;
 }
+
+export const ZoneColors = Object.freeze({
+    ACTIVE: "rgba(255, 255, 255, 1)",
+    SAFE: "rgba(195, 195, 195, 1)",
+    EXIT: "rgba(255, 244, 108, 1)",
+    TELEPORT: "rgba(106, 208, 222, 1)",
+    FLASHLIGHT: "rgba(255, 249, 186, 1)"
+});

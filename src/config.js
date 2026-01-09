@@ -7,8 +7,11 @@ export const CONSTS = Object.freeze({
     SCALE_FACTOR: 1.5
 });
 
-export const settings = {
-    TPS: 60,
+const TPS = 60;
+const SPT = 1 / TPS;        // seconds per tick
+const MSPT = 1000 / TPS;    // milliseconds per tick
+export const settings = Object.freeze({
+    TPS, SPT, MSPT,
     inputDelay: 0,
     slowdown: 3,
     followPlayer: true,
@@ -18,14 +21,13 @@ export const settings = {
     drawBlock: false,
     drawPath: true,
     drawVo: true
-};
-settings.SPT = 1 / settings.TPS;        // seconds per tick
-settings.MSPT = 1000 / settings.TPS;    // milliseconds per tick
+});
 
 
 //standard width height: 3200 480 (100x15)
 //2100 700
 export const areaData = Object.freeze({
+    bg_tint: "rgba(57, 13, 57, 0.5)",
     x: 0,
     y: 155,
     cols: 100,
@@ -77,7 +79,7 @@ export const enemyData = [
 //20
 export const enemyData = [
     {
-        type: EnemyType.NORMAL,
+        type: EnemyType.IMMUNE,
         count: 75,
         radius: 18,
         speed: 480

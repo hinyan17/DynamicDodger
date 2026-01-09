@@ -1,4 +1,5 @@
 import { CONSTS } from "./config.js";
+import { ZoneColors } from "./utils.js";
 
 export default class Drawer {
     constructor() {
@@ -26,15 +27,27 @@ export default class Drawer {
         this.canvas.style.top = `${(innerH - CONSTS.GAME_HEIGHT) / 2}px`;
     }
 
-    drawArea(area, showGrid) {
+    drawArea(area) {
         // main area
-        this.ctx.fillStyle = "white";
+        this.ctx.fillStyle = ZoneColors.ACTIVE;
         this.ctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height)
 
         // safe zones
-        this.ctx.fillStyle = "lightgray";
+        this.ctx.fillStyle = ZoneColors.SAFE;
         this.ctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
         this.ctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
+
+        // teleporters
+        this.ctx.fillStyle = ZoneColors.EXIT;
+        this.ctx.fillRect(area.x, area.y, area.leftTPX - area.x, area.height);
+        this.ctx.fillRect(area.rightTPX, area.y, area.x + area.width - area.rightTPX, area.height);
+
+        // background tint
+        if (area.bg_tint) {
+            console.log("true");
+            this.ctx.fillStyle = area.bg_tint;
+            this.ctx.fillRect(area.x, area.y, area.width, area.height);
+        }
     }
 
     drawGrid(area) {

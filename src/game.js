@@ -64,13 +64,18 @@ export default class Game {
     }
 
     // game initialization functions
-    createArea({x, y, cols, rows, nodeSize, safeTileWidth}) {
+    createArea(areaData) {
+        const {bg_tint, x, y, cols, rows, nodeSize, safeTileWidth} = areaData;
+        const width = cols * nodeSize;
+        const height = rows * nodeSize;
+        const safeZoneWidth = safeTileWidth * nodeSize;
         return {
-            x, y, cols, rows, nodeSize,
-            width: cols * nodeSize,
-            height: rows * nodeSize,
-            leftSafeX: x + nodeSize * safeTileWidth,
-            rightSafeX: x + (cols * nodeSize) - (nodeSize * safeTileWidth)
+            bg_tint,
+            x, y, width, height, cols, rows, nodeSize,
+            leftSafeX: x + safeZoneWidth,
+            rightSafeX: x + width - safeZoneWidth,
+            leftTPX: x + 2 * nodeSize,
+            rightTPX: x + width - (2 * nodeSize)
         };
     }
 

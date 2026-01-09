@@ -134,6 +134,13 @@ export class Normal extends Enemy {
     }
 }
 
+export class Immune extends Enemy {
+    constructor(data) {
+        super(data);
+        this.color = "#000000";
+    }
+}
+
 export class Slowing extends Enemy {
     constructor(data) {
         super(data);
@@ -255,7 +262,7 @@ Code (class): the actual class used to create an enemy object
 */
 // maps: internal id (string) -> code (class)
 export const EnemyRegistry = Object.freeze({
-    Normal, Wall, Slowing, Draining, Withering
+    Normal, Immune, Slowing, Withering, Draining, Wall
 });
 
 // maps: enum type (uppercase string) -> internal id (string)
