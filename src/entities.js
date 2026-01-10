@@ -3,6 +3,7 @@ import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
 export class Player {
     constructor(spawn, radius, maxSpeed) {
         this.color = "#1E90FF";
+        this.name = "ur mom";
         this.spawn = new Vector(spawn.x, spawn.y);
         this.pos = new Vector(spawn.x, spawn.y);
         this.radius = radius;
@@ -192,7 +193,25 @@ export class Wall extends Enemy {
             h: context.area.height - data.radius * 2
         };
         this.perimeter = (this.bounds.w * 2) + (this.bounds.h * 2);
-        this.startDistance = this.perimeter * (context.index / data.count);
+        this.startDistance = this.calcStartDist(context.index, data.count);
+    }
+
+    calcStartDist(index, count) {
+        // distance to the centers of: top right bottom left
+        const sideCenters = [
+            this.bounds.w / 2,
+            this.bounds.w + (this.bounds.h / 2),
+            this.bounds.w + this.bounds.h + (this.bounds.w / 2),
+            (this.bounds.w * 2) + this.bounds.h + (this.bounds.h / 2)
+        ];
+
+        // spawn the wall enemy leader at the center of the top wall. make this configurable later
+        const baseOffset = sideCenters[0];
+
+        // calculate the offset of the other wall enemies relative to the leader
+        const spacing = this.perimeter * (index / count);
+
+        return (baseOffset + spacing) % this.perimeter;
     }
 
     reset() {
