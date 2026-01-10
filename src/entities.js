@@ -184,8 +184,6 @@ export class Wall extends Enemy {
     constructor(data, context) {
         super(data);
         this.color = "#222222";
-
-        // vel is ignored here, pos is manually updated
         this.clockwise = data.clockwise;
         this.bounds = {
             x: context.area.leftSafeX + data.radius,
@@ -200,7 +198,7 @@ export class Wall extends Enemy {
     reset() {
         // override Enemy.reset(area)
         this.distanceTraveled = this.startDistance;
-        this.updatePosVec();
+        this.updateMovement();
     }
 
     move(dt) {
@@ -217,33 +215,39 @@ export class Wall extends Enemy {
                 this.distanceTraveled += this.perimeter;
             }
         }
-        this.updatePosVec();
+        this.updateMovement();
     }
 
-    updatePosVec() {
-        // update the actual position vector
+    updateMovement() {
+        // update the position and velocity vectors
+        // velocity is only used for velObs, only position matters here
+        const dir = this.clockwise ? 1 : -1;
         if (this.distanceTraveled < this.bounds.w) {
             // top edge
             this.pos.x = this.bounds.x + this.distanceTraveled;
             this.pos.y = this.bounds.y;
+            this.vel.set(this.speed * dir, 0);
         }
         else if (this.distanceTraveled < this.bounds.w + this.bounds.h) {
             // right edge
             let offset = this.distanceTraveled - this.bounds.w;
             this.pos.x = this.bounds.x + this.bounds.w;
             this.pos.y = this.bounds.y + offset;
+            this.vel.set(0, this.speed * dir);
         }
         else if (this.distanceTraveled < (this.bounds.w * 2) + this.bounds.h) {
             // bottom edge
             let offset = this.distanceTraveled - (this.bounds.w + this.bounds.h);
             this.pos.x = (this.bounds.x + this.bounds.w) - offset;
             this.pos.y = this.bounds.y + this.bounds.h;
+            this.vel.set(-this.speed * dir, 0);
         }
         else {
             // left edge
             let offset = this.distanceTraveled - ((this.bounds.w * 2) + this.bounds.h);
             this.pos.x = this.bounds.x;
             this.pos.y = (this.bounds.y + this.bounds.h) - offset;
+            this.vel.set(0, -this.speed * dir);
         }
     }
 }
