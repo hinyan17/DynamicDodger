@@ -1,7 +1,7 @@
 console.log("hello skibidies");
 
 import * as Config from "./config.js";
-import { Player, EnemyRegistry } from "./entities.js";
+import { Player, Pellet, EnemyRegistry } from "./entities.js";
 import { Vector } from "./utils.js";
 
 export default class Game {
@@ -9,25 +9,28 @@ export default class Game {
         this.area = this.createArea(Config.areaData);
         this.player = this.createPlayer(Config.playerData);
         this.enemies = this.createEnemies(Config.enemyData);
+        this.pellets = this.createPellets(Config.areaData.pelletCount);
         this.camera = new Vector(0, 0);
+
         this.gameState = {
             camera: this.camera,
             area: this.area,
             player: this.player,
-            enemies: this.enemies
+            enemies: this.enemies,
+            pellets: this.pellets
         };
         //window.gameState = this.gameState;
     }
 
-    // discrete collision detection, the standard for simple 2d physics
-    // not mathematically perfect, but the continuous version is overkill
+    // discrete collision detection. not mathematically perfect, but continuous is overkill
     update(dt, intentVec) {
         // reset temp effects first
         this.player.resetEffects();
 
         // move enemies
         for (const e of this.enemies) {
-            e.move(dt, this.area);
+            e.move(dt);
+            e.checkAreaCollision(this.area);
         }
         // apply aura effects
         for (const e of this.enemies) {
@@ -37,18 +40,18 @@ export default class Game {
         }
 
         // move player
-        this.player.move(dt, intentVec, this.area);
+        this.player.move(dt, intentVec);
+        this.player.checkAreaCollision(this.area);
+        this.player.checkEnemyCollision(this.enemies, () => this.downPlayer());
 
-        // check for player hit
-        if (this.player.checkDead(this.enemies)) {
-            //downPlayer();
+        // eat pellets
+        for (const p of this.pellets) {
+            p.checkPlayerCollision(this.area, this.player);
         }
-    }
-
-    // later: linear interp to show frames between physics updates for high fps
-    updateCamera() {
-        this.camera.x = this.player.pos.x - Config.CONSTS.GAME_WIDTH / 2;
-        this.camera.y = this.player.pos.y - Config.CONSTS.GAME_HEIGHT / 2;
+        // make all pellets pulse
+        if (this.pellets.length > 0) {
+            Pellet.oscillator.update(dt);
+        }
     }
 
     downPlayer() {
@@ -61,6 +64,15 @@ export default class Game {
         for (const e of this.enemies) {
             e.reset(this.area);
         }
+        for (const p of this.pellets) {
+            p.reset(this.area);
+        }
+    }
+
+    updateCamera() {
+        // later: linear interp to show frames between physics updates for high fps
+        this.camera.x = this.player.pos.x - Config.CONSTS.GAME_WIDTH / 2;
+        this.camera.y = this.player.pos.y - Config.CONSTS.GAME_HEIGHT / 2;
     }
 
     // game initialization functions
@@ -80,7 +92,7 @@ export default class Game {
     }
 
     createPlayer(playerData) {
-        return new Player(playerData.spawn, playerData.radius, playerData.speed);
+        return new Player(playerData);
     }
 
     createEnemies(enemyData) {
@@ -102,5 +114,13 @@ export default class Game {
 
         const context = {index, area: this.area};
         return EnemyClass.create(data, context);
+    }
+
+    createPellets(count) {
+        const pellets = [];
+        for (let i = 0; i < count; i++) {
+            pellets.push(new Pellet(this.area));
+        }
+        return pellets;
     }
 }

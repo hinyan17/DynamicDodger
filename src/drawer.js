@@ -27,7 +27,7 @@ export default class Drawer {
         this.canvas.style.top = `${(innerH - CONSTS.GAME_HEIGHT) / 2}px`;
     }
 
-    drawArea(area, showGrid) {
+    drawArea(area) {
         // main area
         this.ctx.fillStyle = ZoneColors.ACTIVE;
         this.ctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height)
@@ -41,16 +41,12 @@ export default class Drawer {
         this.ctx.fillStyle = ZoneColors.EXIT;
         this.ctx.fillRect(area.x, area.y, area.leftTPX - area.x, area.height);
         this.ctx.fillRect(area.rightTPX, area.y, area.x + area.width - area.rightTPX, area.height);
+    }
 
+    drawTint(area) {
         // background tint
-        if (area.bg_tint) {
-            this.ctx.fillStyle = area.bg_tint;
-            this.ctx.fillRect(area.x, area.y, area.width, area.height);
-        }
-
-        if (showGrid) {
-            this.drawGrid(area);
-        }
+        this.ctx.fillStyle = area.bg_tint;
+        this.ctx.fillRect(area.x, area.y, area.width, area.height);
     }
 
     drawGrid(area) {
@@ -74,6 +70,15 @@ export default class Drawer {
         }
     }
 
+    drawPellets(pellets) {
+        for (const p of pellets) {
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.arc(p.pos.x, p.pos.y, p.getEffectiveRadius(), 0, 2 * Math.PI);
+            this.ctx.fill();
+        }
+    }
+
     drawPlayer(player, showFill) {
         this.ctx.beginPath();
         this.ctx.arc(player.pos.x, player.pos.y, player.radius, 0, 2 * Math.PI);
@@ -84,6 +89,41 @@ export default class Drawer {
             this.ctx.lineWidth = 1;
             this.ctx.strokeStyle = player.color;
             this.ctx.stroke();
+        }
+    }
+
+    drawExtras(player) {
+        const WREATH_SIZE = 50;
+        const ENERGY_BAR_WIDTH = 36;
+        const ENERGY_BAR_HEIGHT = 7;
+        const ENERGY_BAR_Y_OFFSET = 8;
+        const NAME_Y_OFFSET = 11;
+        const NAME_FONT = "12px Tahoma, Verdana, Segoe, sans-serif";
+
+        // name
+        this.ctx.fillStyle = "black";
+        this.ctx.font = NAME_FONT;
+        this.ctx.textAlign = "center";
+        this.ctx.fillText(player.name, player.pos.x, player.pos.y - player.radius - NAME_Y_OFFSET);
+
+        // energy bar
+        const energyBarY = player.pos.y - player.radius - ENERGY_BAR_Y_OFFSET;
+        this.ctx.fillStyle = "blue";
+        this.ctx.fillRect(player.pos.x - ENERGY_BAR_WIDTH / 2, energyBarY, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT);
+        // energy bar outline
+        this.ctx.strokeStyle = "rgb(68, 118, 255)";
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(player.pos.x - ENERGY_BAR_WIDTH / 2, energyBarY, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT);
+
+        // hat
+        if (player.accessories.hat.complete) {
+            const wreathX = player.pos.x - WREATH_SIZE / 2;
+            const wreathY = player.pos.y - WREATH_SIZE / 2;
+            this.ctx.drawImage(player.accessories.hat, wreathX, wreathY, WREATH_SIZE, WREATH_SIZE);
+            // gem
+            if (player.accessories.isCrown) {
+                this.ctx.drawImage(player.accessories.gem, wreathX, wreathY, WREATH_SIZE, WREATH_SIZE);
+            }
         }
     }
 
@@ -151,8 +191,14 @@ export default class Drawer {
             -gameState.camera.y - offsetY
         );
 
-        this.drawArea(gameState.area, drawSettings.showGrid);
+        this.drawArea(gameState.area);
+        if (drawSettings.showTint) this.drawTint(gameState.area);
+        if (drawSettings.showGrid) this.drawGrid(gameState.area);
+        if (drawSettings.showPellets) this.drawPellets(gameState.pellets);
+
         this.drawPlayer(gameState.player, drawSettings.showFill);
+        if (drawSettings.showExtras) this.drawExtras(gameState.player);
+
         this.drawEnemies(gameState.enemies, drawSettings.showFill, drawSettings.showOutline);
         this.drawAuras(gameState.enemies);
         this.drawDebug();

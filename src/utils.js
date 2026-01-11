@@ -57,3 +57,37 @@ export const ZoneColors = Object.freeze({
     TELEPORT: "rgba(106, 208, 222, 1)",
     FLASHLIGHT: "rgba(255, 249, 186, 1)"
 });
+
+export class Aura {
+    constructor(color, radius) {
+        this.color = color;
+        this.radius = radius;
+    }
+}
+
+export class Pulsation {
+    constructor(min, max, increment, increasing) {
+        this.value = min;
+        this.min = min;
+        this.max = max;
+        this.increment = increment;
+        this.increasing = increasing;
+    }
+
+    update(dt) {
+        // dt is in seconds, increment is pix / seconds
+        if (this.increasing) {
+            this.value += this.increment * dt;
+            if (this.value >= this.max) {
+                this.value = this.max;
+                this.increasing = false;
+            }
+        } else {
+            this.value -= this.increment * dt;
+            if (this.value <= this.min) {
+                this.value = this.min;
+                this.increasing = true;
+            }
+        }
+    }
+}

@@ -1,14 +1,27 @@
-import { Vector, getRandomCoords, getRandomAngle } from "./utils.js";
+import { Vector, Aura, Pulsation, getRandomCoords, getRandomAngle } from "./utils.js";
 
 export class Player {
-    constructor(spawn, radius, maxSpeed) {
-        this.color = "#1E90FF";
-        this.name = "ur mom";
-        this.spawn = new Vector(spawn.x, spawn.y);
-        this.pos = new Vector(spawn.x, spawn.y);
-        this.radius = radius;
-        this.maxSpeed = maxSpeed;
+    constructor(playerData) {
+        this.name = playerData.name;
+        this.color = playerData.color;
+        this.accessories = this.createAccessories(playerData);
+
+        this.radius = playerData.radius;
+        this.maxSpeed = playerData.speed;
+        this.spawn = new Vector(playerData.spawn.x, playerData.spawn.y);
+        this.pos = new Vector(playerData.spawn.x, playerData.spawn.y);
         this.slowEffect = undefined;
+    }
+
+    createAccessories() {
+        const acc = {
+            hat: new Image(),
+            gem: new Image()
+        };
+        acc.hat.src = playerData.hatSrc;
+        acc.gem.src = playerData.gemSrc;
+        acc.isCrown = acc.hat.src.includes("crown");
+        return acc;
     }
 
     resetEffects() {
@@ -21,7 +34,7 @@ export class Player {
         this.resetEffects();
     }
 
-    move(dt, intentVec, area) {
+    move(dt, intentVec) {
         if (intentVec === null) return;
 
         let dx = intentVec.x * this.maxSpeed * dt;
@@ -31,7 +44,6 @@ export class Player {
             dy *= this.slowEffect;
         }
         this.pos.translate(dx, dy);
-        this.checkAreaCollision(area);
     }
 
     checkAreaCollision(area) {
@@ -45,21 +57,42 @@ export class Player {
         );
     }
 
-    checkDead(enemies) {
+    checkEnemyCollision(enemies, onDeath) {
         // tunneling exists, but will probably never happen
         for (const e of enemies) {
             if (this.pos.distance(e.pos) <= this.radius + e.radius) {
-                return true;
+                // do whatever else needs to be done on death here,
+                // then call the engine's onDeath function
+                onDeath();
             }
         }
-        return false;
     }
 }
 
-class Aura {
-    constructor(color, radius) {
-        this.color = color;
-        this.radius = radius;
+export class Pellet {
+    static baseRadius = 8;
+    static oscillator = new Pulsation(1.1, 1.2, 0.15, true);
+    static colors = ["#b84dd4", "#a32dd8", "#3b96fd", "#43c59b", "#f98f6b", "#61c736"];
+
+    constructor(area) {
+        this.pos = new Vector(0, 0);
+        this.color = Pellet.colors[Math.floor(Math.random() * Pellet.colors.length)];
+        this.reset(area);
+    }
+
+    reset(area) {
+        const newCoords = getRandomCoords(area, Pellet.baseRadius * Pellet.oscillator.max);
+        this.pos.set(newCoords.x, newCoords.y);
+    }
+
+    checkPlayerCollision(area, player) {
+        if (this.pos.distance(player.pos) <= Pellet.baseRadius + player.radius) {
+            this.reset(area);
+        }
+    }
+
+    getEffectiveRadius() {
+        return Pellet.baseRadius * Pellet.oscillator.value;
     }
 }
 
@@ -88,14 +121,12 @@ class Enemy {
         this.vel.set(Math.cos(angle) * this.speed, Math.sin(angle) * this.speed);
     }
 
-    move(dt, area) {
+    move(dt) {
         this.pos.translate(this.vel.x * dt, this.vel.y * dt);
-        if (!(this instanceof Wall)) {
-            this.checkAreaCollision(area);
-        }
     }
 
     checkAreaCollision(area) {
+        if (this instanceof Wall) return;
         // discrete collision detection, but with corrected (accurate) wall reflection
         // find effective limits (boundaries for the circle center)
         const minX = area.leftSafeX + this.radius;
@@ -153,7 +184,7 @@ export class Slowing extends Enemy {
 
     applyAura(player) {
         if (player.pos.distance(this.pos) < player.radius + this.aura.radius) {
-            player.slowEffect = 1 - this.slow;
+            player.slowEffect = Math.min(player.slowEffect, 1 - this.slow);
         }
     }
 }
@@ -168,7 +199,7 @@ export class Withering extends Enemy {
 
     applyAura(player) {
         if (player.pos.distance(this.pos) < player.radius + this.aura.radius) {
-            player.slowEffect = 1 - this.slow;
+            player.slowEffect = Math.min(player.slowEffect, 1 - this.slow);
         }
     }
 }

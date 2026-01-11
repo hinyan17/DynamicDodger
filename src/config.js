@@ -18,20 +18,23 @@ export const settings = Object.freeze({
     paused: false,
     tasOn: false,
     drawing: {
+        showTint: true,
         showGrid: false,
-        showFill: false,
+        showFill: true,
         showOutline: true,
+        showExtras: true,
+        showPellets: true,
         showBlock: false,
         showPath: true,
         showVo: true
     }
 });
 
-
 //standard width height: 3200 480 (100x15)
 //2100 700
 export const areaData = Object.freeze({
-    //bg_tint: "rgba(57, 13, 57, 0.5)",
+    bg_tint: "rgba(57, 13, 57, 0.5)",
+    pelletCount: 25,
     x: 0,
     y: 155,
     cols: 100,
@@ -41,18 +44,22 @@ export const areaData = Object.freeze({
 });
 
 export const playerData = Object.freeze({
+    name: "B0YqL",
+    color: "#FF0000",//"#1E90FF"
+    hatSrc: "./assets/summer-olympics-2-wreath.png",
+    gemSrc: "./assets/7500-gem.png",
+    radius: 15,
+    speed: 510,
     spawn: new Vector(
         areaData.nodeSize * areaData.safeTileWidth / 2 + areaData.x,
-        areaData.rows * areaData.nodeSize / 2 + areaData.y),
-    radius: 15,
-    speed: 510
+        areaData.rows * areaData.nodeSize / 2 + areaData.y)
 });
 
 /*
 export const enemyData = [
     {
         type: EnemyType.NORMAL,
-        count: 30,
+        count: 0,
         radius: 24,
         speed: 100
     },
@@ -72,7 +79,7 @@ export const enemyData = [
     },
     {
         type: EnemyType.WALL,
-        count: 2,
+        count: 3,
         radius: 30,
         speed: 120,
         clockwise: false
