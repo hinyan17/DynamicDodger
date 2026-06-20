@@ -135,16 +135,9 @@ class Area {
     }
 
     reset(players) {
-        // default to first safe zone for now
-        const safeZone = this.zones.find(z => z.type === "SAFE");
-        if (!safeZone) {
-            throw new Error("Area.reset() unable to find safe zone");
-        }
-        const spawnX = safeZone.pos.x + (safeZone.size.x / 2);
-        const spawnY = safeZone.pos.y + (safeZone.size.y / 2);
-
+        const spawn = this.getSpawnPoint();
         for (const p of players) {
-            p.reset(spawnX, spawnY);
+            p.reset(spawn.x, spawn.y);
         }
         for (const enemy of this.enemies) {
             enemy.reset();
@@ -152,6 +145,18 @@ class Area {
         for (const pellet of this.pellets) {
             pellet.reset();
         }
+    }
+
+    getSpawnPoint() {
+        // default to first safe zone
+        const safeZone = this.zones.find(z => z.type === "SAFE" || z.type === "VICTORY");
+        if (!safeZone) {
+            throw new Error("unable to find area spawn point");
+        }
+        return new Vector(
+            safeZone.pos.x + (safeZone.size.x / 2),
+            safeZone.pos.y + (safeZone.size.y / 2)
+        );
     }
 
     update(dt, players) {

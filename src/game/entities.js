@@ -117,18 +117,18 @@ export class Player {
             const dist2 = distSqToRect(this.pos, z.pos, z.size);
             if (dist2 >= this.radius * this.radius) continue;
 
-            const newPos = new Vector(this.pos.x + z.translate.x, this.pos.y + z.translate.y);
-            if (!circleInRect(newPos, this.radius, new Vector(0, 0), area.size)) {
+            const adjPos = new Vector(this.pos.x + z.translate.x, this.pos.y + z.translate.y);
+            if (!circleInRect(adjPos, this.radius, new Vector(0, 0), area.size)) {
                 // out of bounds, therefore continue
                 return {
                     player: this,
-                    newPos,
+                    adjPos,
                     sameWorldTP: z.type === "EXIT",
                     oldArea: area
                 };
             } else {
                 // allow same area teleporting for now?
-                this.pos.set(newPos.x, newPos.y);
+                this.pos.set(adjPos.x, adjPos.y);
                 break;
             }
         }
@@ -350,7 +350,7 @@ export class Wall extends Enemy {
             (this.bounds.w * 2) + this.bounds.h + (this.bounds.h / 2)
         ];
 
-        // spawn the wall enemy leader at the center of the top wall. make this configurable later
+        // spawn the wall enemy leader at the center of the top wall. todo make this configurable later
         const baseOffset = sideCenters[0];
 
         // calculate the offset of the other wall enemies relative to the leader

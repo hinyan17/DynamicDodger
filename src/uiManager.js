@@ -26,8 +26,6 @@ export default class UIManager {
     }
 
     addButtonListeners() {
-        const {togglePause, startSlow, stopSlow} = this.controller;
-
         const gridBtn = document.getElementById("gridBtn");
         gridBtn.addEventListener("click", () => {
             this.settings.drawing.grid = !this.settings.drawing.grid;
@@ -40,32 +38,38 @@ export default class UIManager {
 
         const pauseBtn = document.getElementById("pauseBtn");
         pauseBtn.addEventListener("click", () => {
-            togglePause();
+            this.controller.togglePause();
             pauseBtn.textContent = this.settings.paused ? ">>" : "||";
         });
 
         const frameBtn = document.getElementById("frameBtn");
-        frameBtn.addEventListener("mousedown", startSlow);
-        frameBtn.addEventListener("mouseup", stopSlow);
+        frameBtn.addEventListener("mousedown", this.controller.startSlow);
+        frameBtn.addEventListener("mouseup", this.controller.stopSlow);
     }
 
     addInputListeners() {
-        const {reset, resize, startSlow, stopSlow} = this.controller;
-
         window.addEventListener("keydown", e => {
             if (e.code === "Space") {
-                startSlow(e);
+                this.controller.startSlow(e);
             } else if (e.code === "KeyE") {
-                reset();
+                this.controller.resetArea();
+            } else if (e.code === "KeyR") {
+                this.controller.skipTenAreas();
+            } else if (e.code === "KeyT") {
+                this.controller.skipArea();
+            } else if (e.code === "KeyG") {
+                this.controller.backTenAreas();
+            } else if (e.code === "KeyZ") {
+                this.controller.revive();
             }
         });
 
         window.addEventListener("keyup", e => {
             if (e.code === "Space") {
-                stopSlow(e);
+                this.controller.stopSlow(e);
             }
         });
 
-        window.addEventListener("resize", resize);
+        window.addEventListener("resize", this.controller.resize);
     }
 }

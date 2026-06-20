@@ -21,8 +21,16 @@ async function Engine() {
     // public API, defines all controllable actions
     const controller = {
         resize: () => drawer.resize(),
-        reset: () => game.resetCurrentArea(),
-        togglePause, startSlow, stopSlow
+        skipArea: () => game.jumpAreas(1),
+        skipTenAreas: () => game.jumpAreas(10),
+        backTenAreas: () => game.jumpAreas(-10),
+        revive: () => game.reviveActivePlayer(),
+        resetAP: () => game.resetActivePlayer(),
+        // todo these are "admin-only" actions, maybe when multiplayer?
+        resetArea: () => game.resetCurrentArea(),
+        togglePause,
+        startSlow,
+        stopSlow
     };
 
     // initialize dependent managers
@@ -38,7 +46,7 @@ async function Engine() {
     };
 
     start();
-    // fix start, and fix repeatable calls later
+    // todo fix start, and fix repeatable calls
     function start() {
         if (!settings.paused) {
             requestAnimationFrame(gameLoop);

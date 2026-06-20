@@ -20,21 +20,17 @@ export default class Game {
 
         this.spawnPlayer(myPlayerData, 0, 0);
         this.spawnPlayer(myPlayerData, 1, 0);
-        // use a join game function later
+        // todo use a proper join game function
 
         this.activePlayer = this.players.get(0);
     }
 
     spawnPlayer(playerData, worldId, areaId) {
         const player = new Player(playerData);
-        player.setLocation(worldId, areaId);
-        const area = this.ensureAreaLoaded(player.location);
-        const firstZone = area.zones.find(z => z.type === "SAFE");
-        const spawnX = firstZone.pos.x + firstZone.size.x / 2;
-        const spawnY = firstZone.pos.y + firstZone.size.y / 2;
-        player.pos.set(spawnX, spawnY);
         this.players.set(player.id, player);
-        this.addToAreaIndex(player);
+        const loc = {worldId, areaId};
+        const spawn = this.getArea(loc).getSpawnPoint();
+        this.movePlayerToArea(player, loc, spawn);
     }
 
     removePlayer(player) {
@@ -45,7 +41,7 @@ export default class Game {
     }
 
     addToAreaIndex(player) {
-        const area = this.worlds[player.location.worldId].areas[player.location.areaId];
+        const area = this.getArea(player.location);
         const playerSet = this.playersByArea.get(area);
         if (playerSet === undefined) {
             this.playersByArea.set(area, new Set([player]));
@@ -55,7 +51,7 @@ export default class Game {
     }
 
     rmFromAreaIndex(player) {
-        const area = this.worlds[player.location.worldId].areas[player.location.areaId];
+        const area = this.getArea(player.location);
         const playerSet = this.playersByArea.get(area);
         if (!playerSet) return;
         playerSet.delete(player);
@@ -66,7 +62,7 @@ export default class Game {
 
     // if the area isn't already loaded, load it and update loadedAreas
     ensureAreaLoaded(loc) {
-        const newArea = this.worlds[loc.worldId].areas[loc.areaId];
+        const newArea = this.getArea(loc);
         const newWorldAreaSet = this.loadedAreas.get(loc.worldId);
         if (newWorldAreaSet === undefined) {
             this.loadedAreas.set(loc.worldId, new Set([loc.areaId]));
@@ -82,7 +78,7 @@ export default class Game {
     unloadArea(loc) {
         const areaSet = this.loadedAreas.get(loc.worldId);
         if (areaSet === undefined || !areaSet.has(loc.areaId)) return;
-        const area = this.worlds[loc.worldId].areas[loc.areaId];
+        const area = this.getArea(loc);
         if (this.playersByArea.get(area) !== undefined) return;
 
         area.unload();
@@ -92,43 +88,48 @@ export default class Game {
         }
     }
 
+    // helper to handle all the data structures properly
+    movePlayerToArea(player, newLoc, newPos) {
+        const oldLoc = { ...player.location };
+        this.ensureAreaLoaded(newLoc);
+        this.rmFromAreaIndex(player);
+        player.pos.set(newPos.x, newPos.y);
+        player.setLocation(newLoc.worldId, newLoc.areaId);
+        this.addToAreaIndex(player);
+        // return source location for potential unload
+        return oldLoc;
+    }
+
     resolveTransition(t) {
-        const { player, newPos, sameWorldTP, oldArea } = t;
+        const { player, adjPos, sameWorldTP, oldArea } = t;
         const currLoc = { ...player.location };
-        const currArea = this.worlds[currLoc.worldId].areas[currLoc.areaId];
+        const currArea = this.getArea(currLoc);
 
         // validate transition intent (player is where the transition says its from)
         if (currArea !== oldArea) throw new Error("Invalid transition intent");
 
         // find target area location
         const newLoc = sameWorldTP ?
-            this.findClosestArea(currLoc, newPos, player.radius) :
-            this.findClosestWorld(currLoc, newPos);
+            this.findClosestArea(currLoc, adjPos, player.radius) :
+            this.findClosestWorld(currLoc, adjPos);
 
-        const newArea = this.ensureAreaLoaded(newLoc);
-        this.rmFromAreaIndex(player);
-
-        // put player in target area
-        const oldWorldOffset = this.worlds[currLoc.worldId].pos;
+        // calculate target area local coordinates
+        const oldWorldOffset = this.getWorld(currLoc).pos;
         const oldAreaOffset = currArea.pos;
-        const newWorldOffset = this.worlds[newLoc.worldId].pos;
-        const newAreaOffset = newArea.pos;
-        player.pos.set(
-            oldWorldOffset.x + oldAreaOffset.x + newPos.x - newWorldOffset.x - newAreaOffset.x,
-            oldWorldOffset.y + oldAreaOffset.y + newPos.y - newWorldOffset.y - newAreaOffset.y
+        const newWorldOffset = this.getWorld(newLoc).pos;
+        const newAreaOffset = this.getArea(newLoc).pos;
+        const newPos = new Vector(
+            oldWorldOffset.x + oldAreaOffset.x + adjPos.x - newWorldOffset.x - newAreaOffset.x,
+            oldWorldOffset.y + oldAreaOffset.y + adjPos.y - newWorldOffset.y - newAreaOffset.y
         );
-        player.setLocation(newLoc.worldId, newLoc.areaId);
-        this.addToAreaIndex(player);
-
-        // return source location for potential unload
-        return currLoc;
+        return this.movePlayerToArea(player, newLoc, newPos);
     }
 
     // find the first area that contains targetPos near the current area (same world)
     findClosestArea(currLoc, targetPos, radius) {
         // compute the target position in world-local coordinates
-        const areas = this.worlds[currLoc.worldId].areas;
-        const areaOffset = areas[currLoc.areaId].pos;
+        const areas = this.getWorld(currLoc).areas;
+        const areaOffset = this.getArea(currLoc).pos;
         const targetWorldPos = new Vector(areaOffset.x + targetPos.x, areaOffset.y + targetPos.y);
 
         // alternating search using currAreaId as closest index hint
@@ -167,8 +168,8 @@ export default class Game {
     // find the first different world with anchor area (index 0) closest to targetPos
     findClosestWorld(currLoc, targetPos) {
         // compute the target position in global coordinates
-        const worldOffset = this.worlds[currLoc.worldId].pos;
-        const areaOffset = this.worlds[currLoc.worldId].areas[currLoc.areaId].pos;
+        const worldOffset = this.getWorld(currLoc).pos;
+        const areaOffset = this.getArea(currLoc).pos;
         const targetGlobalPos = new Vector(
             worldOffset.x + areaOffset.x + targetPos.x,
             worldOffset.y + areaOffset.y + targetPos.y
@@ -211,13 +212,12 @@ export default class Game {
         for (const t of transitionQueue) {
             sourceLocs.push(this.resolveTransition(t));
         }
-
         // unload empty areas left from transitions
         for (const loc of sourceLocs) {
             this.unloadArea(loc);
         }
 
-        // remove dead players
+        // remove dead players (safe to remove while iterating map?)
         for (const p of this.players.values()) {
             if (p.isDead()) {
                 this.removePlayer(p);
@@ -229,25 +229,58 @@ export default class Game {
     }
 
     updateCameras() {
-        // later: linear interp to show frames between physics updates for high fps
+        // maybe linear interp to show frames between physics updates for high fps
         for (const p of this.players.values()) {
-            const world = this.worlds[p.location.worldId];
-            const area = world.areas[p.location.areaId];
+            const world = this.getWorld(p.location);
+            const area = this.getArea(p.location);
             p.camera.x = world.pos.x + area.pos.x + p.pos.x - CONSTS.GAME_WIDTH / 2;
             p.camera.y = world.pos.y + area.pos.y + p.pos.y - CONSTS.GAME_HEIGHT / 2;
         }
     }
 
+    downPlayer() {
+        //settings.paused = true;
+        //document.getElementById("pauseBtn").textContent = ">>";
+    }
+
+    // controllable actions by Engine
+    // maybe queue these actions for deterministic ordering relative to physics updates
     resetCurrentArea() {
-        const loc = this.activePlayer.location;
-        const area = this.worlds[loc.worldId].areas[loc.areaId];
+        const area = this.getArea(this.activePlayer.location);
         const players = this.playersByArea.get(area) ?? [];
         area.reset(players);
     }
 
-    downPlayer() {
-        //settings.paused = true;
-        //document.getElementById("pauseBtn").textContent = ">>";
+    resetActivePlayer() {
+        const area = this.getArea(this.activePlayer.location);
+        this.activePlayer.reset(area.getSpawnPoint());
+    }
+
+    reviveActivePlayer() {
+        this.activePlayer.revive();
+    }
+
+    jumpAreas(count) {
+        if (count === 0) return;
+        const currWorld = this.getWorld(this.activePlayer.location);
+        const newLoc = { ...this.activePlayer.location };
+        newLoc.areaId += count;
+        if (newLoc.areaId < 0) {
+            newLoc.areaId = 0;
+        } else if (newLoc.areaId >= currWorld.areas.length) {
+            newLoc.areaId = currWorld.areas.length - 1;
+        }
+        const newArea = this.getArea(newLoc);
+        const oldLoc = this.movePlayerToArea(this.activePlayer, newLoc, newArea.getSpawnPoint());
+        this.unloadArea(oldLoc);
+    }
+
+    getWorld(loc) {
+        return this.worlds[loc.worldId];
+    }
+
+    getArea(loc) {
+        return this.worlds[loc.worldId].areas[loc.areaId];
     }
 
 }
