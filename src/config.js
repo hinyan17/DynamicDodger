@@ -1,5 +1,4 @@
 import { Vector } from "./utils.js";
-import { EnemyType } from "./entities.js";
 
 export const CONSTS = Object.freeze({
     GAME_WIDTH: 1920,
@@ -18,103 +17,25 @@ export const settings = Object.freeze({
     paused: false,
     tasOn: false,
     drawing: {
-        showTint: true,
-        showGrid: false,
-        showFill: true,
-        showOutline: true,
-        showExtras: true,
-        showPellets: true,
-        showBlock: false,
-        showPath: true,
-        showVo: true
+        grid: false,
+        fill: true,
+        outline: true,
+        extras: true,
+        pellets: true,
+        block: false,
+        path: true,
+        vo: true
     }
 });
 
-//standard width height: 3200 480 (100x15)
-//2100 700
-export const areaData = Object.freeze({
-    bg_tint: "rgba(57, 13, 57, 0.5)",
-    pelletCount: 25,
-    x: 0,
-    y: 155,
-    cols: 100,
-    rows: 15,
-    nodeSize: 32,
-    safeTileWidth: 10
-});
+// refactor into separate client / server config later
 
-export const playerData = Object.freeze({
+
+export const myPlayerData = Object.freeze({
     name: "B0YqL",
     color: "#FF0000",//"#1E90FF"
-    hatSrc: "./assets/summer-olympics-2-wreath.png",
-    gemSrc: "./assets/7500-gem.png",
+    hatSrc: "../assets/summer-olympics-2-wreath.png",
+    gemSrc: "../assets/7500-gem.png",
     radius: 15,
-    speed: 510,
-    spawn: new Vector(
-        areaData.nodeSize * areaData.safeTileWidth / 2 + areaData.x,
-        areaData.rows * areaData.nodeSize / 2 + areaData.y)
+    speed: 510
 });
-
-/*
-export const enemyData = [
-    {
-        type: EnemyType.NORMAL,
-        count: 0,
-        radius: 24,
-        speed: 100
-    },
-    {
-        type: EnemyType.SLOWING,
-        count: 0,
-        radius: 20,
-        speed: 120,
-        auraRadius: 160
-    },
-    {
-        type: EnemyType.WALL,
-        count: 10,
-        radius: 30,
-        speed: 120,
-        clockwise: true
-    },
-    {
-        type: EnemyType.WALL,
-        count: 3,
-        radius: 30,
-        speed: 120,
-        clockwise: false
-    }
-];
-*/
-///*
-//20
-export const enemyData = [
-    {
-        type: EnemyType.IMMUNE,
-        count: 75,
-        radius: 18,
-        speed: 480
-    },
-    {
-        type: EnemyType.WITHERING,
-        count: 7,
-        radius: 12,
-        speed: 60,
-        auraRadius: 100
-    },
-    {
-        type: EnemyType.WALL,
-        count: 6,
-        radius: 30,
-        speed: 900,
-        clockwise: true
-    },
-    {
-        type: EnemyType.WALL,
-        count: 6,
-        radius: 30,
-        speed: 900,
-        clockwise: false
-    }
-];
-//*/

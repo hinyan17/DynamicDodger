@@ -1,7 +1,6 @@
 export default class UIManager {
-    constructor(gameState, settings, controller) {
+    constructor(settings, controller) {
         // be aware of object desync
-        this.gameState = gameState;
         this.settings = settings;
         this.controller = controller;
 
@@ -15,10 +14,9 @@ export default class UIManager {
         infoBar.textContent = `\
             TPS: ${this.settings.TPS}
             Delay: ${this.settings.inputDelay}
-            Enemies: ${this.gameState.enemies.length}
-            Area: ${this.gameState.area.cols * this.gameState.area.rows}\
-                (${this.gameState.area.cols}x${this.gameState.area.rows})
-            more:
+            Enemies: fix later
+            Area: fix later
+            more: fix later
         `;
 
         infoBar.style.opacity = "1";
@@ -32,7 +30,7 @@ export default class UIManager {
 
         const gridBtn = document.getElementById("gridBtn");
         gridBtn.addEventListener("click", () => {
-            this.settings.drawing.showGrid = !this.settings.drawing.showGrid;
+            this.settings.drawing.grid = !this.settings.drawing.grid;
         });
 
         const tasBtn = document.getElementById("tasBtn");

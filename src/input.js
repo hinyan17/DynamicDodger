@@ -4,7 +4,7 @@ export default class InputManager {
     constructor(canvas, delay) {
         this.canvas = canvas;
         this.delay = delay;
-        this.keys = {up: false, down: false, left: false, right: false};
+        this.pressedKeys = new Set();
         this.mousePos = new Vector(0, 0);
         this.mouseActive = false;
         this.inputBuffer = [];
@@ -12,27 +12,32 @@ export default class InputManager {
         this.handleKey = this.handleKey.bind(this);
         this.handleClick = this.handleClick.bind(this);
         this.handleMouse = this.handleMouse.bind(this);
-        this.initListeners();
-    }
-
-    setDelay(delay) {
-        this.delay = delay;
-    }
-
-    initListeners() {
         window.addEventListener("keydown", this.handleKey);
         window.addEventListener("keyup", this.handleKey);
         window.addEventListener("mousedown", this.handleClick);
         window.addEventListener("mousemove", this.handleMouse);
     }
 
+    setDelay(delay) {
+        this.delay = delay;
+    }
+
     handleKey(e) {
-        const isPressed = e.type === "keydown";
         switch (e.code) {
-            case "KeyW": case "ArrowUp":    this.keys.up = isPressed; break;
-            case "KeyS": case "ArrowDown":  this.keys.down = isPressed; break;
-            case "KeyA": case "ArrowLeft":  this.keys.left = isPressed; break;
-            case "KeyD": case "ArrowRight": this.keys.right = isPressed; break;
+            case "KeyW":
+            case "ArrowUp":
+            case "KeyS":
+            case "ArrowDown":
+            case "KeyA":
+            case "ArrowLeft":
+            case "KeyD":
+            case "ArrowRight":
+                if (e.type === "keydown") {
+                    this.pressedKeys.add(e.code);
+                } else {
+                    this.pressedKeys.delete(e.code);
+                }
+                break;
         }
     }
 
@@ -62,7 +67,12 @@ export default class InputManager {
     getInput() {
         const now = performance.now();
         const snapshot = {
-            keys: { ...this.keys },
+            keys: {
+                up: this.pressedKeys.has("KeyW") || this.pressedKeys.has("ArrowUp"),
+                down: this.pressedKeys.has("KeyS") || this.pressedKeys.has("ArrowDown"),
+                left: this.pressedKeys.has("KeyA") || this.pressedKeys.has("ArrowLeft"),
+                right: this.pressedKeys.has("KeyD") || this.pressedKeys.has("ArrowRight")
+            },
             mousePos: new Vector(this.mousePos.x, this.mousePos.y),
             mouseActive: this.mouseActive
         };
@@ -106,10 +116,11 @@ export default class InputManager {
         if (rawInput === null) return null;
 
         const keyVec = new Vector(0, 0);
-        if (rawInput.keys.left) keyVec.x -= 1;
-        if (rawInput.keys.right) keyVec.x += 1;
-        if (rawInput.keys.up) keyVec.y -= 1;
-        if (rawInput.keys.down) keyVec.y += 1;
+        if (rawInput.keys.right)        keyVec.x = 1;
+        else if (rawInput.keys.left)    keyVec.x = -1;
+        if (rawInput.keys.up)           keyVec.y = -1;
+        else if (rawInput.keys.down)    keyVec.y = 1;
+
         if (keyVec.x !== 0 || keyVec.y !== 0) {
             return keyVec;
         }

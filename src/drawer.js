@@ -27,45 +27,82 @@ export default class Drawer {
         this.canvas.style.top = `${(innerH - CONSTS.GAME_HEIGHT) / 2}px`;
     }
 
-    drawArea(area) {
-        // main area
-        this.ctx.fillStyle = ZoneColors.ACTIVE;
-        this.ctx.fillRect(area.leftSafeX, area.y, area.width - (area.leftSafeX - area.x) * 2, area.height)
+    draw(game, opts) {
+        // reset canvas transformation and fill with dark gray
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.fillStyle = "#333";
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // safe zones
-        this.ctx.fillStyle = ZoneColors.SAFE;
-        this.ctx.fillRect(area.x, area.y, area.leftSafeX - area.x, area.height);
-        this.ctx.fillRect(area.rightSafeX, area.y, area.x + area.width - area.rightSafeX, area.height);
+        // apply scale to match
+        this.ctx.scale(CONSTS.SCALE_FACTOR, CONSTS.SCALE_FACTOR);
 
-        // teleporters
-        this.ctx.fillStyle = ZoneColors.EXIT;
-        this.ctx.fillRect(area.x, area.y, area.leftTPX - area.x, area.height);
-        this.ctx.fillRect(area.rightTPX, area.y, area.x + area.width - area.rightTPX, area.height);
+        // camera uses original canvas dimensions
+        // fix the center shift caused by scaling: (original − scaled) / 2
+        const offsetX = (this.canvas.width - (this.canvas.width / CONSTS.SCALE_FACTOR)) / 2;
+        const offsetY = (this.canvas.height - (this.canvas.height / CONSTS.SCALE_FACTOR)) / 2;
+
+        // apply corrected camera translation (shifts origin)
+        this.ctx.translate(-game.activePlayer.camera.x - offsetX, -game.activePlayer.camera.y - offsetY);
+
+        // right now draw everything, later change to drawing only activePlayer current area
+        // const loc = game.playerLocations.get(activePlayer.id);
+        // const area = game.worlds[loc.worldId].areas[loc.areaId];
+        for (const [worldId, areaIdSet] of game.loadedAreas) {
+            for (const areaId of areaIdSet) {
+                const world = game.worlds[worldId];
+                const area = world.areas[areaId];
+                this.ctx.save();
+                this.ctx.translate(world.pos.x + area.pos.x, world.pos.y + area.pos.y);
+
+                this.drawZones(area.zones);
+                this.drawTint(area.color, area.size);
+                if (opts.grid) this.drawGrid(area.size);
+                if (opts.pellets) this.drawPellets(area.pellets);
+                const players = game.playersByArea.get(area) ?? [];
+                this.drawPlayers(players, opts.fill, opts.extras);
+                this.drawAuras(area.enemies);
+                this.drawEnemies(area.enemies, opts.fill, opts.outline);
+
+                this.ctx.restore();
+            }
+        }
+
+        //this.drawDebug();
     }
 
-    drawTint(area) {
+    // all these draw in area-local space
+    drawZones(zones) {
+        for (const z of zones) {
+            this.ctx.fillStyle = ZoneColors[z.type];
+            this.ctx.fillRect(z.pos.x, z.pos.y, z.size.x, z.size.y);
+        }
+    }
+
+    drawTint(color, areaSize) {
         // background tint
-        this.ctx.fillStyle = area.bg_tint;
-        this.ctx.fillRect(area.x, area.y, area.width, area.height);
+        if (!color) return;
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(0, 0, areaSize.x, areaSize.y);
     }
 
-    drawGrid(area) {
+    drawGrid(areaSize) {
         this.ctx.strokeStyle = "#222";
         this.ctx.lineWidth = 0.3;
+        const tileSize = 32;
 
         // vertical lines
-        for (let x = area.x + area.nodeSize; x < area.x + area.width; x += area.nodeSize) {
+        for (let x = tileSize; x < areaSize.x; x += tileSize) {
             this.ctx.beginPath();
-            this.ctx.moveTo(x, area.y);
-            this.ctx.lineTo(x, area.y + area.height);
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, areaSize.y);
             this.ctx.stroke();
         }
 
         // horizontal lines
-        for (let y = area.y + area.nodeSize; y < area.y + area.height; y += area.nodeSize) {
+        for (let y = tileSize; y < areaSize.y; y += tileSize) {
             this.ctx.beginPath();
-            this.ctx.moveTo(area.x, y);
-            this.ctx.lineTo(area.x + area.width, y);
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(areaSize.x, y);
             this.ctx.stroke();
         }
     }
@@ -79,20 +116,41 @@ export default class Drawer {
         }
     }
 
-    drawPlayer(player, showFill) {
-        this.ctx.beginPath();
-        this.ctx.arc(player.pos.x, player.pos.y, player.radius, 0, 2 * Math.PI);
-        if (showFill) {
-            this.ctx.fillStyle = player.color;
-            this.ctx.fill();
-        } else {
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeStyle = player.color;
-            this.ctx.stroke();
+    drawPlayers(players, showFill, showExtras) {
+        for (const p of players) {
+            this.ctx.beginPath();
+            this.ctx.arc(p.pos.x, p.pos.y, p.radius, 0, 2 * Math.PI);
+            if (showFill) {
+                // draw main body
+                this.ctx.save();
+                this.ctx.fillStyle = p.color;
+                if (p.isDowned()) {
+                    this.ctx.globalAlpha = 0.4;
+                }
+                this.ctx.fill();
+                this.ctx.restore();
+
+                // draw extras
+                if (showExtras) {
+                    this.drawExtras(p);
+                }
+
+                // draw downed timer
+                if (p.isDowned()) {
+                    this.ctx.fillStyle = "red";
+                    this.ctx.font = "16px Tahoma, Verdana, Segoe, sans-serif";
+                    this.ctx.textAlign = "center";
+                    this.ctx.fillText(Math.floor(p.downedTimer).toFixed(0), p.pos.x, p.pos.y + 6);
+                }
+            } else {
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeStyle = p.color;
+                this.ctx.stroke();
+            }
         }
     }
 
-    drawExtras(player) {
+    drawExtras(p) {
         const WREATH_SIZE = 50;
         const ENERGY_BAR_WIDTH = 36;
         const ENERGY_BAR_HEIGHT = 7;
@@ -104,47 +162,32 @@ export default class Drawer {
         this.ctx.fillStyle = "black";
         this.ctx.font = NAME_FONT;
         this.ctx.textAlign = "center";
-        this.ctx.fillText(player.name, player.pos.x, player.pos.y - player.radius - NAME_Y_OFFSET);
+        this.ctx.fillText(p.name, p.pos.x, p.pos.y - p.radius - NAME_Y_OFFSET);
 
         // energy bar
-        const energyBarY = player.pos.y - player.radius - ENERGY_BAR_Y_OFFSET;
+        const energyBarY = p.pos.y - p.radius - ENERGY_BAR_Y_OFFSET;
         this.ctx.fillStyle = "blue";
-        this.ctx.fillRect(player.pos.x - ENERGY_BAR_WIDTH / 2, energyBarY, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT);
+        this.ctx.fillRect(p.pos.x - ENERGY_BAR_WIDTH / 2, energyBarY, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT);
         // energy bar outline
         this.ctx.strokeStyle = "rgb(68, 118, 255)";
         this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(player.pos.x - ENERGY_BAR_WIDTH / 2, energyBarY, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT);
+        this.ctx.strokeRect(p.pos.x - ENERGY_BAR_WIDTH / 2, energyBarY, ENERGY_BAR_WIDTH, ENERGY_BAR_HEIGHT);
 
         // hat
-        if (player.accessories.hat.complete) {
-            const wreathX = player.pos.x - WREATH_SIZE / 2;
-            const wreathY = player.pos.y - WREATH_SIZE / 2;
-            this.ctx.drawImage(player.accessories.hat, wreathX, wreathY, WREATH_SIZE, WREATH_SIZE);
+        this.ctx.save();
+        if (p.isDowned()) {
+            this.ctx.globalAlpha = 0.4;
+        }
+        if (p.accessories.hat.complete) {
+            const wreathX = p.pos.x - WREATH_SIZE / 2;
+            const wreathY = p.pos.y - WREATH_SIZE / 2;
+            this.ctx.drawImage(p.accessories.hat, wreathX, wreathY, WREATH_SIZE, WREATH_SIZE);
             // gem
-            if (player.accessories.isCrown) {
-                this.ctx.drawImage(player.accessories.gem, wreathX, wreathY, WREATH_SIZE, WREATH_SIZE);
+            if (p.accessories.isCrown) {
+                this.ctx.drawImage(p.accessories.gem, wreathX, wreathY, WREATH_SIZE, WREATH_SIZE);
             }
         }
-    }
-
-    drawEnemies(enemies, showFill, showOutline) {
-        for (const e of enemies) {
-            this.ctx.beginPath();
-            this.ctx.arc(e.pos.x, e.pos.y, e.radius, 0, 2 * Math.PI);
-
-            if (showFill) {
-                this.ctx.fillStyle = e.color;
-                this.ctx.fill();
-                if (showOutline) {
-                    this.ctx.lineWidth = 2;
-                    this.ctx.strokeStyle = "#000000";
-                }
-            } else {
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeStyle = e.color;
-            }
-            this.ctx.stroke();
-        }
+        this.ctx.restore();
     }
 
     drawAuras(enemies) {
@@ -171,37 +214,24 @@ export default class Drawer {
         }
     }
 
-    draw(gameState, drawSettings) {
-        // reset canvas transformation and fill with dark gray
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        this.ctx.fillStyle = "#333";
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    drawEnemies(enemies, showFill, showOutline) {
+        for (const e of enemies) {
+            this.ctx.beginPath();
+            this.ctx.arc(e.pos.x, e.pos.y, e.radius, 0, 2 * Math.PI);
 
-        // apply scale to match
-        this.ctx.scale(CONSTS.SCALE_FACTOR, CONSTS.SCALE_FACTOR);
-
-        // camera uses original canvas dimensions
-        // fix the center shift caused by scaling: (original − scaled) / 2
-        const offsetX = (this.canvas.width - (this.canvas.width / CONSTS.SCALE_FACTOR)) / 2;
-        const offsetY = (this.canvas.height - (this.canvas.height / CONSTS.SCALE_FACTOR)) / 2;
-
-        // apply corrected camera translation (shifts origin)
-        this.ctx.translate(
-            -gameState.camera.x - offsetX,
-            -gameState.camera.y - offsetY
-        );
-
-        this.drawArea(gameState.area);
-        if (drawSettings.showTint) this.drawTint(gameState.area);
-        if (drawSettings.showGrid) this.drawGrid(gameState.area);
-        if (drawSettings.showPellets) this.drawPellets(gameState.pellets);
-
-        this.drawPlayer(gameState.player, drawSettings.showFill);
-        if (drawSettings.showExtras) this.drawExtras(gameState.player);
-
-        this.drawEnemies(gameState.enemies, drawSettings.showFill, drawSettings.showOutline);
-        this.drawAuras(gameState.enemies);
-        this.drawDebug();
+            if (showFill) {
+                this.ctx.fillStyle = e.color;
+                this.ctx.fill();
+                if (showOutline) {
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeStyle = "#ffffff";
+                }
+            } else {
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeStyle = e.color;
+            }
+            this.ctx.stroke();
+        }
     }
 
     /*

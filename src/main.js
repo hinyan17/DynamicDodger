@@ -1,28 +1,34 @@
+console.log("hello skibidies");
+
 import * as Config from "./config.js";
-import Game from "./game.js";
+import Game from "./game/game.js";
 import Drawer from "./drawer.js";
-import InputManager from "./inputManager.js";
+import InputManager from "./input.js";
 import UIManager from "./uiManager.js";
 import VelocityObs from "./tas/velocityObs.js";
 
+import { World } from "./game/worldModel.js";
+import { Vector } from "./utils.js";
+
 // Engine coordinates all other modules. it "owns" the game and wires everything together
 // separation of concerns: game doesn't need to know about it, doesn't need to access them
-function Engine() {
+async function Engine() {
     const settings = {...Config.settings};
     const game = new Game();
+    await game.init();
     const drawer = new Drawer();
 
     // public API, defines all controllable actions
     const controller = {
         resize: () => drawer.resize(),
-        reset: () => game.resetArea(),
+        reset: () => game.resetCurrentArea(),
         togglePause, startSlow, stopSlow
     };
 
     // initialize dependent managers
     const inputter = new InputManager(drawer.canvas, settings.inputDelay);
-    const ui = new UIManager(game.gameState, settings, controller);
-    const velObs = VelocityObs(game.gameState, settings, drawer);
+    const ui = new UIManager(settings, controller);
+    //const velObs = VelocityObs(game.gameState, settings, drawer);
 
     const timeVars = {
         lastTime: performance.now(),
@@ -61,22 +67,20 @@ function Engine() {
         // capture current input state
         const raw = inputter.getInput();
         let intentVec = inputter.processInput(raw);
-
         // correct it with tas, if tas is on
         if (settings.tasOn) {
             intentVec = velObs.findSafeVelocity(intentVec);
         }
+        game.activePlayer.updateIntent(intentVec);
 
         // run the actual game.update
-        game.update(settings.SPT, intentVec);
+        game.update(settings.SPT);
     }
 
     // do whatever else needs to be done in this frame (after all updates run)
     function postUpdateGame() {
-        if (settings.followPlayer) {
-            game.updateCamera();
-        }
-        drawer.draw(game.gameState, settings.drawing);
+        game.updateCameras();
+        drawer.draw(game, settings.drawing);
     }
 
     // controllable actions
@@ -115,4 +119,8 @@ function Engine() {
     }
 }
 
-Engine();
+// fix map creation and area loading first
+await Engine();
+//const w = await World.create(new Vector(0, 0), "../example-map.yaml");
+//w.areas[0].load();
+//console.log("world object: ", w);
