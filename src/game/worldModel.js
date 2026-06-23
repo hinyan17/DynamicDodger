@@ -160,9 +160,9 @@ class Area {
     }
 
     update(dt, players) {
-        // reset temp effects first
+        // clear temp effects first
         for (const player of players) {
-            player.resetEffects();
+            player.clearTempEffects();
         }
         // move enemies and apply aura effects
         for (const enemy of this.enemies) {
@@ -185,6 +185,7 @@ class Area {
             } else if (player.isDowned()) {
                 player.updateDownedState(dt, players);
             }
+            //player.updateTimedEffects(dt);
         }
         return transitions;
     }

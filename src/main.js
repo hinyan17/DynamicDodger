@@ -24,8 +24,9 @@ async function Engine() {
         skipArea: () => game.jumpAreas(1),
         skipTenAreas: () => game.jumpAreas(10),
         backTenAreas: () => game.jumpAreas(-10),
-        revive: () => game.reviveActivePlayer(),
         resetAP: () => game.resetActivePlayer(),
+        revive: () => game.reviveActivePlayer(),
+        godMode: () => game.toggleGod(),
         // todo these are "admin-only" actions, maybe when multiplayer?
         resetArea: () => game.resetCurrentArea(),
         togglePause,

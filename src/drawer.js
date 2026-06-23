@@ -44,7 +44,7 @@ export default class Drawer {
         // apply corrected camera translation (shifts origin)
         this.ctx.translate(-game.activePlayer.camera.x - offsetX, -game.activePlayer.camera.y - offsetY);
 
-        // right now draw everything, later change to drawing only activePlayer current area
+        // todo right now draw everything, later change to drawing only activePlayer current area
         // const loc = game.playerLocations.get(activePlayer.id);
         // const area = game.worlds[loc.worldId].areas[loc.areaId];
         for (const [worldId, areaIdSet] of game.loadedAreas) {
@@ -123,7 +123,7 @@ export default class Drawer {
             if (showFill) {
                 // draw main body
                 this.ctx.save();
-                this.ctx.fillStyle = p.color;
+                this.ctx.fillStyle = p.isGod ? "purple" : p.color;
                 if (p.isDowned()) {
                     this.ctx.globalAlpha = 0.4;
                 }

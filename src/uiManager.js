@@ -57,10 +57,12 @@ export default class UIManager {
                 this.controller.skipTenAreas();
             } else if (e.code === "KeyT") {
                 this.controller.skipArea();
-            } else if (e.code === "KeyG") {
+            } else if (e.code === "KeyY") {
                 this.controller.backTenAreas();
             } else if (e.code === "KeyZ") {
                 this.controller.revive();
+            } else if (e.code === "KeyV") {
+                this.controller.godMode();
             }
         });
 

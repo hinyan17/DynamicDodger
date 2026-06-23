@@ -243,7 +243,7 @@ export default class Game {
         //document.getElementById("pauseBtn").textContent = ">>";
     }
 
-    // controllable actions by Engine
+    // controllable actions by Engine on activePlayer
     // maybe queue these actions for deterministic ordering relative to physics updates
     resetCurrentArea() {
         const area = this.getArea(this.activePlayer.location);
@@ -258,6 +258,10 @@ export default class Game {
 
     reviveActivePlayer() {
         this.activePlayer.revive();
+    }
+
+    toggleGod() {
+        this.activePlayer.toggleGod();
     }
 
     jumpAreas(count) {

@@ -23,7 +23,9 @@ export class Player {
         this.maxSpeed = playerData.speed;
         this.pos = new Vector(playerData.x, playerData.y);
         this.state = PlayerState.ACTIVE;
+        this.isGod = false;
         this.downedTimer = 60;
+        this.invincTimer = 0;
         this.slowEffect = undefined;
     }
 
@@ -73,6 +75,7 @@ export class Player {
     }
 
     applyEnemyCollision(enemies) {
+        if (this.isGod || this.invincTimer > 0) return;
         for (const e of enemies) {
             if (this.pos.distance(e.pos) < this.radius + e.radius) {
                 this.down();
@@ -90,6 +93,11 @@ export class Player {
     }
 
     updateDownedState(dt, players) {
+        if (this.isGod) {
+            this.revive();
+            return;
+        }
+
         let saved = false;
         for (const p of players) {
             if (p === this || !p.isActive()) continue;
@@ -135,10 +143,6 @@ export class Player {
         return null;
     }
 
-    resetEffects() {
-        this.slowEffect = undefined;
-    }
-
     reset(spawnX, spawnY) {
         this.pos.set(spawnX, spawnY);
         this.resetEffects();
@@ -169,8 +173,43 @@ export class Player {
         return this.state === PlayerState.DOWNED;
     }
 
-    isDead() {
+    isDead() { 
         return this.state === PlayerState.DEAD;
+    }
+
+    // "timed" effects last for a certain time, like invincibility or debuff penalties
+    // they are updated after movement and collision checks to last the frame they expire in
+    updateTimedEffects(dt) {
+        if (this.isDead()) return;
+        /*
+        // don't have enough effects yet to implement
+        if (this.isDowned()) {
+            // clear certain timed effects (speed penalty, freeze, etc), then decrement others
+        } else {
+            // decrement all timed effects
+        }
+        */
+        this.invincTimer = Math.max(0, this.invincTimer - dt);
+    }
+
+    // "temp" effects are cleared and reapplied every frame, such as enemy aura effects
+    // this happens before movement
+    clearTempEffects() {
+        this.slowEffect = undefined;
+    }
+
+    resetEffects() {
+        this.invincTimer = 0;
+        this.slowEffect = undefined;
+    }
+
+    applySlow(slow) {
+        if (this.isGod || this.invincTimer > 0) return;
+        this.slowEffect = Math.min(this.slowEffect ?? 1, 1 - slow);
+    }
+
+    toggleGod() {
+        this.isGod = !this.isGod;
     }
 }
 
@@ -298,7 +337,7 @@ export class Slowing extends Enemy {
     }
 
     applyAuraEffect(player) {
-        player.slowEffect = Math.min(player.slowEffect ?? 1, 1 - this.slow);
+        player.applySlow(this.slow);
     }
 }
 
@@ -312,7 +351,7 @@ export class Withering extends Enemy {
     }
 
     applyAuraEffect(player) {
-        player.slowEffect = Math.min(player.slowEffect ?? 1, 1 - this.slow);
+        player.applySlow(this.slow);
     }
 }
 
