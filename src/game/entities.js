@@ -16,6 +16,7 @@ export class Player {
         this.location = {worldId: 0, areaId: 0};
         this.camera = new Vector(0, 0);
         this.intentVec = new Vector(0, 0);
+        this.lastMoveDelta = new Vector(0, 0);
         this.name = playerData.name;
         this.color = playerData.color;
         this.accessories = this.createAccessories(playerData);
@@ -50,16 +51,30 @@ export class Player {
         }
     }
 
-    move(dt) {
-        if (this.intentVec.x === 0 && this.intentVec.y === 0) return;
+    move(dt, friction) {
+        const frictionFactor = 1 - friction;
+        const speed = this.maxSpeed * (this.slowEffect ?? 1);
+        const cap = speed * dt;
+        const desired = new Vector(
+            this.intentVec.x * cap + this.lastMoveDelta.x * frictionFactor,
+            this.intentVec.y * cap + this.lastMoveDelta.y * frictionFactor
+        );
 
-        let dx = this.intentVec.x * this.maxSpeed * dt;
-        let dy = this.intentVec.y * this.maxSpeed * dt;
-        if (this.slowEffect) {
-            dx *= this.slowEffect;
-            dy *= this.slowEffect;
+        const absX = Math.abs(desired.x);
+        const absY = Math.abs(desired.y);
+        if (absX < 0.001) {
+            desired.x = 0;
+        } else if (absX > cap) {
+            desired.x *= cap / absX;
         }
-        this.pos.translate(dx, dy);
+        if (absY < 0.001) {
+            desired.y = 0;
+        } else if (absY > cap) {
+            desired.y *= cap / absY;
+        }
+
+        this.lastMoveDelta.set(desired.x, desired.y);
+        this.pos.translate(desired.x, desired.y);
     }
 
     applyAreaCollision(areaSize) {

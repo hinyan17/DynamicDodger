@@ -1,4 +1,7 @@
 import { Vector } from "./utils.js";
+import { CONSTS } from "./config.js";
+
+const mouseFullStrength = 150 * CONSTS.SCALE_FACTOR;
 
 export default class InputManager {
     constructor(canvas, delay) {
@@ -126,9 +129,12 @@ export default class InputManager {
         }
 
         if (rawInput.mouseActive) {
-            const intentVec = new Vector(rawInput.mousePos.x, rawInput.mousePos.y);
+            const intentVec = new Vector(
+                Math.round(rawInput.mousePos.x),
+                Math.round(rawInput.mousePos.y)
+            );
             const mag = intentVec.magnitude();
-            const power = Math.min(mag / 150, 1);
+            const power = Math.min(mag / mouseFullStrength, 1);
             if (mag !== 0) {
                 intentVec.scale(power / mag);
             }

@@ -37,6 +37,7 @@ class Area {
     constructor(areaInfo, index, lastAreaDims, worldProps) {
         if (areaInfo.properties) this.properties = areaInfo.properties;
         if (areaInfo.boss) this.boss = areaInfo.boss;
+        this.friction = worldProps?.friction ?? 0.75;
         const bgColor = this.properties?.background_color ?? worldProps?.background_color;
         if (bgColor) {
             const [r, g, b, a] = bgColor;
@@ -174,7 +175,7 @@ class Area {
         const transitions = [];
         for (const player of players) {
             if (player.isActive()) {
-                player.move(dt);
+                player.move(dt, this.friction);
                 player.applyAreaCollision(this.size);
                 player.applyEnemyCollision(this.enemies);
                 player.applyPelletCollision(this.pellets);
